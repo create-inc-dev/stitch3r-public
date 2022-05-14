@@ -4,26 +4,27 @@ from mathutils import Vector
 from bpy import context 
 import re 
 
-class Layer:
+class Layer: #Class that stores information about the layer. Needs to change because there are different widths in the same layer as well
     def __init__(self, zPos, height, gcodes) -> None:
         self.zPos = zPos
         self.height = height
         self.gcodes = gcodes
 
 
-def builder(gcodeFilePath):
+#Reads the GCode Files, extracts only the G1 and G0 moves. Sorry no support for circular moves so far.
+def gcodeParser(gcodeFilePath):
     file = open(gcodeFilePath, 'r')
     
     listOfParsedLayers = []
     
-    gcodePattern = re.compile("\s*G[01](\s+[XYZEF](-?[0-9]+(\.[0-9]+)?))+\s*$")
-    nonMovingGcodePattern = re.compile("\s*G[01](\s+[EF](-?[0-9]+(\.[0-9]+)?))+\s*$")
-    layerChangePattern = re.compile("\s*;LAYER_CHANGE\s*")
+    gcodePattern = re.compile("\s*G[01](\s+[XYZEF](-?[0-9]+(\.[0-9]+)?))+\s*$") #Pattern that matches G0 or G1 commands. To be noted, I don't see any G0 commansd in Prusa Slicer.
+    nonMovingGcodePattern = re.compile("\s*G[01](\s+[EF](-?[0-9]+(\.[0-9]+)?))+\s*$") #Matches the G0 or G1 commands that have no X,Y or Z components, thereby are not travel moves.
+    layerChangePattern = re.compile("\s*;LAYER_CHANGE\s*") #Detecting Layer change, I think this makes things incompatible with vase mode.
     prevLayerGcodes = []
     prevLayerZPos = 0
     prevLayerHeight = 0
 
-    curPosValues = {'X':0, 'Y':0, 'Z':0, 'E':0}
+    curPosValues = {'X':0, 'Y':0, 'Z':0, 'E':0, 'W':0.5}
     while True:
         line = file.readline()
         
@@ -61,10 +62,13 @@ def builder(gcodeFilePath):
         elif not line:
             prevLayer = Layer(prevLayerZPos, prevLayerHeight, prevLayerGcodes)
             listOfParsedLayers.append(prevLayer)
-            #print(prevLayerZPos, prevLayerHeight, len(prevLayerGcodes))
             break
 
+    return listOfParsedLayers
 
+def builder(gcodeFilePath):
+    
+    listOfParsedLayers = gcodeParser(gcodeFilePath)
 
     
     i = 0
@@ -72,7 +76,6 @@ def builder(gcodeFilePath):
         
         coords = []
 
-        #print(len(currentLayer.gcodes))
         for elem in currentLayer.gcodes:
             print(elem) 
             if (elem["E"] > 0):
@@ -82,7 +85,7 @@ def builder(gcodeFilePath):
        
         curveData = bpy.data.curves.new('myCurve' + str(i) , type='CURVE')
         curveData.dimensions = '3D'
-        curveData.resolution_u = 2
+        curveData.resolution_u = 1
 
         polyline = curveData.splines.new('POLY')
         polyline.points.add(len(coords)-1)
@@ -99,10 +102,7 @@ def builder(gcodeFilePath):
         i = i + 1
 
             
-    
-    
-    
-builder("/Users/vipulrajan/Downloads/benchy.gcode")
+if __name__ == "__main__": builder("/Users/vipulrajan/Downloads/benchy.gcode")
 
 """def slicer(ob, start, end, cuts):
     #slices = [] could instead return unlinked objects

@@ -6,9 +6,11 @@ import re
 from numpy import poly 
 
 
-def createProfile(width, height):
-    curveData = bpy.data.curves.new('bevelObject', type='CURVE')
-    curveData.dimensions = '3D'
+def createProfile(width, height, name_suffix="bevel"):
+    curveName = str(width) + "_" + str(height) + "_" + name_suffix
+    curveData = bpy.data.curves.new(curveName, type='CURVE')
+    curveData.dimensions = '2D'
+    curveData.resolution_u = 8
 
     
     point1 = [(-1*(width - height)/2, 0, 0), (-1*((width - height)/2 + height),0,0), (-1*((width - height)/2 - height),0,0)]
@@ -32,14 +34,14 @@ def createProfile(width, height):
         polyline.bezier_points[i].handle_right = coord[2]
 
     # create Object
-    curveOB = bpy.data.objects.new('bevelObject', curveData)
+    curveOB = bpy.data.objects.new(curveName, curveData)
 
     # attach to scene and validate context
     view_layer = bpy.context.view_layer
-    curveOB = bpy.data.objects.new('bevelObject', curveData)
+    curveOB = bpy.data.objects.new(curveName, curveData)
     view_layer.active_layer_collection.collection.objects.link(curveOB)
 
-createProfile(0.35,0.2)
+if __name__ == "__main__": createProfile(0.5,0.2)
 
 
     
