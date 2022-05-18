@@ -6,8 +6,7 @@ import re
 from numpy import poly 
 
 
-def createProfile(width, height, name_suffix="bevel"):
-    curveName = str(width) + "_" + str(height) + "_" + name_suffix
+def createProfile(width, height, curveName="bevel"):
     curveData = bpy.data.curves.new(curveName, type='CURVE')
     curveData.dimensions = '2D'
     curveData.resolution_u = 8
@@ -35,11 +34,14 @@ def createProfile(width, height, name_suffix="bevel"):
 
     # create Object
     curveOB = bpy.data.objects.new(curveName, curveData)
+    curveOB.data['width'] = width
+    curveOB.data['height'] = height
 
     # attach to scene and validate context
-    view_layer = bpy.context.view_layer
-    curveOB = bpy.data.objects.new(curveName, curveData)
-    view_layer.active_layer_collection.collection.objects.link(curveOB)
+    """view_layer = bpy.context.view_layer
+    view_layer.active_layer_collection.collection.objects.link(curveOB)"""
+
+
 
 if __name__ == "__main__": createProfile(0.5,0.2)
 
