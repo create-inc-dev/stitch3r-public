@@ -124,14 +124,17 @@ def placeCurve(coords, width, height, zPos, widthOffset, heightOffset, bevelSuff
         #print("Curve placed")
         curveData = bpy.data.curves.new('myCurve', type='CURVE')
         curveData.dimensions = '3D'
-        curveData.resolution_u = 2
+        curveData.resolution_u = 1
+        curveData.render_resolution_u = 12
 
-        polyline = curveData.splines.new('POLY')
-        polyline.points.add(len(coords)-1)
+        polyline = curveData.splines.new('BEZIER')
+        polyline.bezier_points.add(len(coords)-1)
         bevelObject = None
         for i, coord in enumerate(coords):
             x,y,z = coord
-            polyline.points[i].co = (x, y, z, 1)
+            polyline.bezier_points[i].co = (x, y, z)
+            polyline.bezier_points[i].handle_left = (x, y, z)
+            polyline.bezier_points[i].handle_right = (x, y, z)
 
         view_layer = bpy.context.view_layer
         curveOB = bpy.data.objects.new('myCurve', curveData)
@@ -194,7 +197,7 @@ def builder(gcodeFilePath, widthOffset=0, heightOffset=0):
         i = i + 1
 
             
-if __name__ == "__main__": builder("/Users/vipulrajan/Downloads/tester.gcode")
+if __name__ == "__main__": builder("/Users/vipulrajan/Downloads/tester.gcode", widthOffset=-0.06)
 
 """def slicer(ob, start, end, cuts):
     #slices = [] could instead return unlinked objects
