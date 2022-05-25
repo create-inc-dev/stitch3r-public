@@ -15,8 +15,9 @@ from Exceptions import NoHeightMatch, NoZPosMatch, NotVerbose
 from BevelShapeCreator import createProfile
 
 class Layer: #Class that stores information about the layer. Needs to change because there are different widths in the same layer as well
-    def __init__(self, zPos, height, gcodes) -> None:
+    def __init__(self, zPos, height, layerNumber, gcodes) -> None:
         self.zPos = zPos
+        self.layerNumber = layerNumber
         self.height = height
         self.gcodes = gcodes
     def __str__(self) -> str:
@@ -35,14 +36,16 @@ def gcodeParser(gcodeFilePath):
     widthPattern = re.compile("\s*;WIDTH:([0-9]+(?:\.[0-9]+)?)\s*$") #Detecting a change in the width of print line
     zPosPattern = re.compile("\s*;Z:([0-9]+(?:\.[0-9]+)?)\s*$")
     heightPattern = re.compile("\s*;HEIGHT:([0-9]+(?:\.[0-9]+)?)\s*$")
+    typePattern = re.compile("\s*;TYPE:(\S*)\s*$")
     firstPointPattern = re.compile("move to first")
 
     prevLayerGcodes = [] #All GCodes that move the nozzle, with our without extrusion would be stored here and then popped when the next later starts
     prevLayerZPos = 0 #Prusa Slicer Prints the Z position and layer height after each layer change
     prevLayerHeight = 0
     curLineNumber = 0 #For error tracing
+    curLayerNumber = 0
 
-    curPosValues = {'X':0, 'Y':0, 'Z':0, 'E':0, 'W':0.5} #E is extrusion; X, Y and Z are the coordinates; W is width of the  print line
+    valueTacker = {'X':0, 'Y':0, 'Z':0, 'E':0, 'W':0.5, 'layerNumber':0, 'type':'Custom'} #E is extrusion; X, Y and Z are the coordinates; W is width of the  print line
 
     while True:
         line = file.readline()
@@ -69,20 +72,20 @@ def gcodeParser(gcodeFilePath):
                 raise NoHeightMatch(line, curLineNumber)
 
 
-            prevLayer = Layer(prevLayerZPos, prevLayerHeight, prevLayerGcodes)
+            prevLayer = Layer(prevLayerZPos, prevLayerHeight, curLayerNumber, prevLayerGcodes)
             listOfParsedLayers.append(prevLayer)
 
             
             prevLayerGcodes = []
             prevLayerZPos = zPos
             prevLayerHeight = height
+            curLayerNumber = curLayerNumber + 1
 
             
 
         elif bool(widthPattern.match(line)):
-            curPosValues['W'] = round(float(widthPattern.search(line)[1]), 2)
+            valueTacker['W'] = round(float(widthPattern.search(line)[1]), 2)
             
-
         elif bool(gcodePattern.match(line)):
             
             gcodePart = gcodePattern.search(line)[1].strip()
@@ -94,14 +97,14 @@ def gcodeParser(gcodeFilePath):
                 pass
 
             separatedGcode = gcodePart.split()
-            tempDict = curPosValues.copy()
+            tempDict = valueTacker.copy()
             
             if not bool(nonMovingGcodePattern.match(gcodePart)):
                 
                 for term in separatedGcode:
                     tempDict[term[0]] = float(term[1:])
                     if term[0] in ['X', 'Y', 'Z']:
-                        curPosValues[term[0]] = float(term[1:])
+                        valueTacker[term[0]] = float(term[1:])
                 tempDict['lineNumber'] = curLineNumber
                 
                 prevLayerGcodes.append(tempDict.copy())
@@ -110,7 +113,7 @@ def gcodeParser(gcodeFilePath):
         
 
         elif not line:
-            prevLayer = Layer(prevLayerZPos, prevLayerHeight, prevLayerGcodes)
+            prevLayer = Layer(prevLayerZPos, prevLayerHeight, curLayerNumber, prevLayerGcodes)
             listOfParsedLayers.append(prevLayer)
             break
 
@@ -119,7 +122,7 @@ def gcodeParser(gcodeFilePath):
     
     return listOfParsedLayers
 
-def placeCurve(coords, width, height, zPos, widthOffset, heightOffset, bevelSuffix, abberationParams):
+def placeCurve(coords, width, height, zPos, widthOffset, heightOffset, bevelSuffix, collection, abberationParams):
     if (len(coords) > 1):
         #print("Curve placed")
         curveData = bpy.data.curves.new('myCurve', type='CURVE')
@@ -153,8 +156,13 @@ def placeCurve(coords, width, height, zPos, widthOffset, heightOffset, bevelSuff
         curveData.bevel_object = bpy.data.objects.get(bevelName)
         curveData.use_fill_caps = True
 
-        
-        view_layer.active_layer_collection.collection.objects.link(curveOB)
+        ## Delte after testing
+        mat = bpy.data.materials.get("Material.001")
+        curveOB.data.materials.append(mat)
+        curveOB.modifiers.new('split', 'EDGE_SPLIT')
+        curveOB.modifiers.get('split').show_viewport = False
+        ## Delte after testing        
+        collection.objects.link(curveOB)
 
 
 def builder(gcodeFilePath, widthOffset=0, heightOffset=0):
@@ -164,11 +172,15 @@ def builder(gcodeFilePath, widthOffset=0, heightOffset=0):
     params = {}
     i = 0
     
+    parentCollection =  bpy.data.collections.new("OBJECT")
+    bpy.context.scene.collection.children.link(parentCollection)
 
     for currentLayer in listOfParsedLayers:
         prevWidth = 0
         coords = []        
 
+        layerCollection = bpy.data.collections.new("Layer " + str(currentLayer.layerNumber))
+        parentCollection.children.link(layerCollection)
         #currentLayer.gcodes = filter(lambda x: 67870 < x['lineNumber'] and x['lineNumber'] <= 67966 ,currentLayer.gcodes)
         for elem in currentLayer.gcodes:
             #print(elem)
@@ -177,19 +189,19 @@ def builder(gcodeFilePath, widthOffset=0, heightOffset=0):
                     coords.append((elem['X'],elem['Y'],elem['Z']))
                 else:
                     
-                    placeCurve(coords, prevWidth, currentLayer.height, currentLayer.zPos, widthOffset, heightOffset, bevelSuffix, params)
+                    placeCurve(coords, prevWidth, currentLayer.height, currentLayer.zPos, widthOffset, heightOffset, bevelSuffix, layerCollection, params)
                     prevWidth = elem['W']
                     coords = coords[-1:]
                     coords.append((elem['X'],elem['Y'],elem['Z']))
                 
             else:
                 
-                placeCurve(coords, prevWidth, currentLayer.height, currentLayer.zPos, widthOffset, heightOffset, bevelSuffix, params)
+                placeCurve(coords, prevWidth, currentLayer.height, currentLayer.zPos, widthOffset, heightOffset, bevelSuffix, layerCollection, params)
                 
                 coords = [(elem['X'],elem['Y'],elem['Z'])]
 
             
-        placeCurve(coords, prevWidth, currentLayer.height, currentLayer.zPos, widthOffset, heightOffset, bevelSuffix, params)
+        placeCurve(coords, prevWidth, currentLayer.height, currentLayer.zPos, widthOffset, heightOffset, bevelSuffix, layerCollection, params)
 
             #print(elem, coords)
         

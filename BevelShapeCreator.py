@@ -6,7 +6,7 @@ import re
 from numpy import poly 
 
 
-def createProfile(width, height, curveName="bevel"):
+def createProfile(width, height, curveName="bevel", collectionName="bevelCollection"):
     curveData = bpy.data.curves.new(curveName, type='CURVE')
     curveData.dimensions = '2D'
     curveData.resolution_u = 8
@@ -37,9 +37,15 @@ def createProfile(width, height, curveName="bevel"):
     curveOB.data['width'] = width
     curveOB.data['height'] = height
 
-    # attach to scene and validate context
-    """view_layer = bpy.context.view_layer
-    view_layer.active_layer_collection.collection.objects.link(curveOB)"""
+    collection = ""
+    if (collectionName in bpy.data.collections.keys()):
+        collection =  bpy.data.collections.get(collectionName)
+        
+    else:
+        collection =  bpy.data.collections.new(collectionName)
+        bpy.context.scene.collection.children.link(collection)
+
+    collection.objects.link(curveOB)
 
 
 
