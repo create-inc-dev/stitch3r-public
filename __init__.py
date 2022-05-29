@@ -107,6 +107,8 @@ class Buddy_Props(bpy.types.PropertyGroup):
     Custom: bpy.props.BoolProperty(name='Custom', default=True)
     Solid_infill: bpy.props.BoolProperty(name='Solid infill', default=True)
     Skirt_Brim: bpy.props.BoolProperty(name='Skirt/Brim', default=True)
+
+    SeamDistance: bpy.props.FloatProperty(name='Seam Distance', default=0.2, description='How far apart should the seams be to get a desired look', min=0)
     
 
 CLASSES = [
@@ -114,7 +116,7 @@ CLASSES = [
 ]
 
 propsMain = [
-    'ObjectName', 'BevelName', 'FilePath'
+    'ObjectName', 'BevelName', 'FilePath', 'SeamDistance'
     ]
 
 propsFilter = ['Gap_fill', 'External_perimeter', 'Perimeter', 'Top_solid_infill', 'Bridge_infill', 'Internal_infill', 'Custom', 'Solid_infill', 'Skirt_Brim']

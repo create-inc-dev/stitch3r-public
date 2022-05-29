@@ -4,6 +4,7 @@ import bpy
 import os, sys
 import bmesh
 from mathutils import Vector
+import math
 from bpy import context 
 import re 
 import importlib
@@ -126,12 +127,14 @@ def gcodeParser(gcodeFilePath, params):
     
     return listOfParsedLayers
 
+
 #Take the parsed GCode and finally make it into a curve that is beveled on blender
 def placeCurve(coords, width, height, zPos, type, bevelSuffix, collection, params):
     
     widthOffset = getFromParam('widthOffset',params)
     heightOffset = getFromParam('heightOffset',params)
     precision = getFromParam('precision',params)
+    lengthOfCurve = 0
 
     if (len(coords) > 1):
         #print("Curve placed")
@@ -143,17 +146,24 @@ def placeCurve(coords, width, height, zPos, type, bevelSuffix, collection, param
         polyline = curveData.splines.new('BEZIER')
         polyline.bezier_points.add(len(coords)-1)
         bevelObject = None
+        prevCoord = coords[0]
+
         for i, coord in enumerate(coords):
             x,y,z = coord
             polyline.bezier_points[i].co = (x, y, z)
             polyline.bezier_points[i].handle_left = (x, y, z)
             polyline.bezier_points[i].handle_right = (x, y, z)
 
+            lengthOfCurve = lengthOfCurve + math.dist(prevCoord, coord)
+            prevCoord = coord
+
         view_layer = bpy.context.view_layer
         curveOB = bpy.data.objects.new('myCurve', curveData)
         #curveOB.data.bevel_depth = 0.1
         curveOB.data["zPos"] = zPos
         curveOB.data["type"] = type
+        curveOB.data["lengthOfCurve"] = lengthOfCurve
+        curveOB.hide_viewport = True
 
         bevelName = ("{:."+str(precision)+"f}").format(width + widthOffset) + "_" + ("{:."+str(precision)+"f}").format(height + heightOffset) + "_" + bevelSuffix
 
@@ -170,10 +180,17 @@ def placeCurve(coords, width, height, zPos, type, bevelSuffix, collection, param
         ## Delte after testing
         mat = bpy.data.materials.get("Material.001")
         curveOB.data.materials.append(mat)
+        ## Delte after testing        
+
+        #Aplly modifier to smooth out overlap artefacts, only shows in renders
         curveOB.modifiers.new('split', 'EDGE_SPLIT')
         curveOB.modifiers.get('split').show_viewport = False
-        ## Delte after testing        
-        curveOB.hide_viewport = True
+
+        #Change bevel mapping - this would be used for rounding the end points of the curve
+        curveOB.data.bevel_factor_mapping_start = 'SPLINE'
+        curveOB.data.bevel_factor_mapping_end = 'SPLINE'
+
+        
         collection.objects.link(curveOB)
         
         return curveOB
@@ -205,19 +222,23 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
     
     listOfParsedLayers = gcodeParser(gcodeFilePath, params)
     typeDictionary = {}
+    layerDictionary = []
 
     i = 0
     
     parentCollection =  bpy.data.collections.new(objectName)
     bpy.context.scene.collection.children.link(parentCollection)
 
-    for currentLayer in listOfParsedLayers:
+    for currentLayer in listOfParsedLayers[1:2]:
         prevWidth = 0
         prevType = "Custom"
         coords = []
 
+        
         layerCollection = bpy.data.collections.new("Layer " + str(currentLayer.layerNumber))
         parentCollection.children.link(layerCollection)
+
+        layerDictionary.append(layerCollection)
         #currentLayer.gcodes = filter(lambda x: 67870 < x['lineNumber'] and x['lineNumber'] <= 67966 ,currentLayer.gcodes)
         
         placeCurveAnonFunc = lambda : placeCurve(coords, prevWidth, currentLayer.height, currentLayer.zPos, prevType, bevelSuffix, layerCollection, params)
@@ -230,7 +251,7 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
                     typeDictionary.update({type: []})
                     typeDictionary[type].append(curve)
 
-        for elem in currentLayer.gcodes:
+        for elem in currentLayer.gcodes[0:42]:
             #print(elem)
             if (elem["E"] > 0):
                 if (elem['W'] == prevWidth and elem['type'] == prevType):

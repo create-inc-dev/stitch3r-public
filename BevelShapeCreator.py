@@ -1,11 +1,4 @@
-from pickle import TRUE
 import bpy
-from mathutils import Vector
-from bpy import context 
-import re
-
-from numpy import poly 
-
 
 def createProfile(width, height, curveName="bevel", collectionName="bevelCollection"):
     curveData = bpy.data.curves.new(curveName, type='CURVE')
