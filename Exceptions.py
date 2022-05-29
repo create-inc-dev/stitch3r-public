@@ -19,3 +19,8 @@ class NotVerbose(FormatException):
     def __init__(self, line, lineNumber, message="Could not find comments, the GCODE if probably not verbose"):
         super().__init__(line, lineNumber, message)
 
+class NoSuchPropertyException(Exception):
+    def __init__(self, key) -> None:
+        self.key = key
+        self.message = "`{}` key is not a valid parameter.".fromat(key)
+        super().__init__(self.message)

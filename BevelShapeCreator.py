@@ -1,3 +1,4 @@
+from pickle import TRUE
 import bpy
 from mathutils import Vector
 from bpy import context 
@@ -44,6 +45,7 @@ def createProfile(width, height, curveName="bevel", collectionName="bevelCollect
     else:
         collection =  bpy.data.collections.new(collectionName)
         bpy.context.scene.collection.children.link(collection)
+        collection.hide_viewport = True
 
     collection.objects.link(curveOB)
 

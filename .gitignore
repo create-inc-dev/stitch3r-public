@@ -1,1 +1,5 @@
 *.blend*
+/textures
+/assets
+/__pycache__
+ExecutionTester.py

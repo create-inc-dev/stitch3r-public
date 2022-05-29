@@ -6,13 +6,13 @@ import bmesh
 from mathutils import Vector
 from bpy import context 
 import re 
+import importlib
 
-dir = os.path.dirname(bpy.data.filepath)
-if not dir in sys.path:
-    sys.path.append(dir)
-
-from Exceptions import NoHeightMatch, NoZPosMatch, NotVerbose
-from BevelShapeCreator import createProfile
+moduleParentName = '.'.join(__name__.split('.')[:-1])
+createProfile = sys.modules[moduleParentName + '.BevelShapeCreator'].createProfile
+NoZPosMatch = sys.modules[moduleParentName + '.Exceptions'].NoZPosMatch
+NoHeightMatch = sys.modules[moduleParentName + '.Exceptions'].NoHeightMatch
+NoSuchPropertyException = sys.modules[moduleParentName + '.Exceptions'].NoSuchPropertyException
 
 class Layer: #Class that stores information about the layer. Needs to change because there are different widths in the same layer as well
     def __init__(self, zPos, height, layerNumber, gcodes) -> None:
@@ -25,7 +25,7 @@ class Layer: #Class that stores information about the layer. Needs to change bec
 
 
 #Reads the GCode Files, extracts only the G1 and G0 moves. Sorry no support for circular moves so far.
-def gcodeParser(gcodeFilePath):
+def gcodeParser(gcodeFilePath, params):
     file = open(gcodeFilePath, 'r')
     
     listOfParsedLayers = []
@@ -36,7 +36,7 @@ def gcodeParser(gcodeFilePath):
     widthPattern = re.compile("\s*;WIDTH:([0-9]+(?:\.[0-9]+)?)\s*$") #Detecting a change in the width of print line
     zPosPattern = re.compile("\s*;Z:([0-9]+(?:\.[0-9]+)?)\s*$")
     heightPattern = re.compile("\s*;HEIGHT:([0-9]+(?:\.[0-9]+)?)\s*$")
-    typePattern = re.compile("\s*;TYPE:(\S*)\s*$")
+    typePattern = re.compile("\s*;TYPE:(.*)$")
     firstPointPattern = re.compile("move to first")
 
     prevLayerGcodes = [] #All GCodes that move the nozzle, with our without extrusion would be stored here and then popped when the next later starts
@@ -47,6 +47,7 @@ def gcodeParser(gcodeFilePath):
 
     valueTacker = {'X':0, 'Y':0, 'Z':0, 'E':0, 'W':0.5, 'layerNumber':0, 'type':'Custom'} #E is extrusion; X, Y and Z are the coordinates; W is width of the  print line
 
+    precision = getFromParam('precision',params)
     while True:
         line = file.readline()
         curLineNumber = curLineNumber + 1
@@ -84,7 +85,10 @@ def gcodeParser(gcodeFilePath):
             
 
         elif bool(widthPattern.match(line)):
-            valueTacker['W'] = round(float(widthPattern.search(line)[1]), 2)
+            valueTacker['W'] = round(float(widthPattern.search(line)[1]), precision)
+
+        elif bool(typePattern.match(line)):
+            valueTacker['type'] = typePattern.search(line)[1].strip()
             
         elif bool(gcodePattern.match(line)):
             
@@ -122,7 +126,13 @@ def gcodeParser(gcodeFilePath):
     
     return listOfParsedLayers
 
-def placeCurve(coords, width, height, zPos, widthOffset, heightOffset, bevelSuffix, collection, abberationParams):
+#Take the parsed GCode and finally make it into a curve that is beveled on blender
+def placeCurve(coords, width, height, zPos, type, bevelSuffix, collection, params):
+    
+    widthOffset = getFromParam('widthOffset',params)
+    heightOffset = getFromParam('heightOffset',params)
+    precision = getFromParam('precision',params)
+
     if (len(coords) > 1):
         #print("Curve placed")
         curveData = bpy.data.curves.new('myCurve', type='CURVE')
@@ -143,8 +153,9 @@ def placeCurve(coords, width, height, zPos, widthOffset, heightOffset, bevelSuff
         curveOB = bpy.data.objects.new('myCurve', curveData)
         #curveOB.data.bevel_depth = 0.1
         curveOB.data["zPos"] = zPos
+        curveOB.data["type"] = type
 
-        bevelName = "{:.2f}".format(width + widthOffset) + "_" + "{:.2f}".format(height + heightOffset) + "_" + bevelSuffix
+        bevelName = ("{:."+str(precision)+"f}").format(width + widthOffset) + "_" + ("{:."+str(precision)+"f}").format(height + heightOffset) + "_" + bevelSuffix
 
         if bevelName in bpy.data.objects.keys():
             bevelObject = bpy.data.objects.get(bevelName)
@@ -162,54 +173,96 @@ def placeCurve(coords, width, height, zPos, widthOffset, heightOffset, bevelSuff
         curveOB.modifiers.new('split', 'EDGE_SPLIT')
         curveOB.modifiers.get('split').show_viewport = False
         ## Delte after testing        
+        curveOB.hide_viewport = True
         collection.objects.link(curveOB)
+        
+        return curveOB
+
+def toggleVisibility(filters):
+    listOfCurves = bpy.context.scene['typeDictionary']
+
+    for key in filters.keys():
+        if ( key in listOfCurves.keys()):
+            if (filters[key]):
+                for obj in listOfCurves[key]:
+                    obj.hide_viewport = False
+            else:
+                for obj in listOfCurves[key]:
+                    obj.hide_viewport = True
 
 
-def builder(gcodeFilePath, widthOffset=0, heightOffset=0):
+defaultParams = { 'widthOffset':0, 'heightOffset':0, 'precision': 2 }
+def getFromParam(key, params):
+    if key in params.keys():
+        return params[key]
+    elif key in defaultParams:
+        return defaultParams[key]
+
+    else:
+        raise NoSuchPropertyException(key)
+
+def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}, filters = {}):
     
-    listOfParsedLayers = gcodeParser(gcodeFilePath)
-    bevelSuffix = "bevel"
-    params = {}
+    listOfParsedLayers = gcodeParser(gcodeFilePath, params)
+    typeDictionary = {}
+
     i = 0
     
-    parentCollection =  bpy.data.collections.new("OBJECT")
+    parentCollection =  bpy.data.collections.new(objectName)
     bpy.context.scene.collection.children.link(parentCollection)
 
     for currentLayer in listOfParsedLayers:
         prevWidth = 0
-        coords = []        
+        prevType = "Custom"
+        coords = []
 
         layerCollection = bpy.data.collections.new("Layer " + str(currentLayer.layerNumber))
         parentCollection.children.link(layerCollection)
         #currentLayer.gcodes = filter(lambda x: 67870 < x['lineNumber'] and x['lineNumber'] <= 67966 ,currentLayer.gcodes)
+        
+        placeCurveAnonFunc = lambda : placeCurve(coords, prevWidth, currentLayer.height, currentLayer.zPos, prevType, bevelSuffix, layerCollection, params)
+        def appendToTypeDict(curve, type):
+            type = re.sub(" |/","_", type) 
+            if (not curve == None):
+                if type in typeDictionary.keys():
+                    typeDictionary[type].append(curve)
+                else: 
+                    typeDictionary.update({type: []})
+                    typeDictionary[type].append(curve)
+
         for elem in currentLayer.gcodes:
             #print(elem)
             if (elem["E"] > 0):
-                if (elem['W'] == prevWidth):
+                if (elem['W'] == prevWidth and elem['type'] == prevType):
                     coords.append((elem['X'],elem['Y'],elem['Z']))
                 else:
-                    
-                    placeCurve(coords, prevWidth, currentLayer.height, currentLayer.zPos, widthOffset, heightOffset, bevelSuffix, layerCollection, params)
+                    curveOB = placeCurveAnonFunc()
+                    appendToTypeDict(curveOB, prevType)
                     prevWidth = elem['W']
+                    prevType = elem['type']
                     coords = coords[-1:]
                     coords.append((elem['X'],elem['Y'],elem['Z']))
                 
             else:
                 
-                placeCurve(coords, prevWidth, currentLayer.height, currentLayer.zPos, widthOffset, heightOffset, bevelSuffix, layerCollection, params)
+                curveOB = placeCurveAnonFunc()
+                appendToTypeDict(curveOB, prevType)
                 
                 coords = [(elem['X'],elem['Y'],elem['Z'])]
 
             
-        placeCurve(coords, prevWidth, currentLayer.height, currentLayer.zPos, widthOffset, heightOffset, bevelSuffix, layerCollection, params)
-
-            #print(elem, coords)
-        
-
+        curveOB = placeCurveAnonFunc()
+        appendToTypeDict(curveOB, prevType)
         i = i + 1
 
+
+    ## Felt experimental might delete later
+    bpy.context.scene['typeDictionary'] = typeDictionary
+    
+    toggleVisibility(filters)
+    
             
-if __name__ == "__main__": builder("/Users/vipulrajan/Downloads/tester.gcode", widthOffset=-0.06)
+
 
 """def slicer(ob, start, end, cuts):
     #slices = [] could instead return unlinked objects
