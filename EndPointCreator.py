@@ -34,7 +34,7 @@ def createEndPoint(curveOB, bevelShape): ##End point rounding
 
 def createStartPoint(curveOB, bevelShape): ##Start point rounding
     startPointBevel = bevelShape.copy()
-    startPointBevel.name = curveOB.name + "_end_point"
+    startPointBevel.name = curveOB.name + "_start_point"
 
     startPointBevel.modifiers.new('Screw', 'SCREW')
     startPointBevel.modifiers.get("Screw").angle = math.pi
@@ -125,8 +125,8 @@ def createEndPoints(curveOB, seamDistanceProp = "Buddy_Props.SeamDistance"):
     return (endPointBevel, startPointBevel)
 
 
-
-endPoint, startPoint = createEndPoints(bpy.data.objects.get("myCurve"))
-bpy.data.collections.get("Layer 1").objects.link(endPoint)
-bpy.data.collections.get("Layer 1").objects.link(startPoint)
+if __name__ == "__main__":
+    endPoint, startPoint = createEndPoints(bpy.data.objects.get("myCurve"))
+    bpy.data.collections.get("Layer 1").objects.link(endPoint)
+    bpy.data.collections.get("Layer 1").objects.link(startPoint)
 

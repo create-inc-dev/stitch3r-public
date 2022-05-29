@@ -14,6 +14,7 @@ createProfile = sys.modules[moduleParentName + '.BevelShapeCreator'].createProfi
 NoZPosMatch = sys.modules[moduleParentName + '.Exceptions'].NoZPosMatch
 NoHeightMatch = sys.modules[moduleParentName + '.Exceptions'].NoHeightMatch
 NoSuchPropertyException = sys.modules[moduleParentName + '.Exceptions'].NoSuchPropertyException
+createEndPoints = sys.modules[moduleParentName + '.EndPointCreator'].createEndPoints
 
 class Layer: #Class that stores information about the layer. Needs to change because there are different widths in the same layer as well
     def __init__(self, zPos, height, layerNumber, gcodes) -> None:
@@ -229,7 +230,7 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
     parentCollection =  bpy.data.collections.new(objectName)
     bpy.context.scene.collection.children.link(parentCollection)
 
-    for currentLayer in listOfParsedLayers[1:2]:
+    for currentLayer in listOfParsedLayers:
         prevWidth = 0
         prevType = "Custom"
         coords = []
@@ -241,24 +242,35 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
         layerDictionary.append(layerCollection)
         #currentLayer.gcodes = filter(lambda x: 67870 < x['lineNumber'] and x['lineNumber'] <= 67966 ,currentLayer.gcodes)
         
-        placeCurveAnonFunc = lambda : placeCurve(coords, prevWidth, currentLayer.height, currentLayer.zPos, prevType, bevelSuffix, layerCollection, params)
-        def appendToTypeDict(curve, type):
-            type = re.sub(" |/","_", type) 
+        def appendToTypeDict(curve, curveType):
+            
             if (not curve == None):
-                if type in typeDictionary.keys():
-                    typeDictionary[type].append(curve)
+                if curveType in typeDictionary.keys():
+                    typeDictionary[curveType].append(curve)
                 else: 
-                    typeDictionary.update({type: []})
-                    typeDictionary[type].append(curve)
+                    typeDictionary.update({curveType: []})
+                    typeDictionary[curveType].append(curve)
 
-        for elem in currentLayer.gcodes[0:42]:
+        def placeCurveFunc(curveType):
+            curveType = re.sub(" |/","_", curveType)
+            curveOB = placeCurve(coords, prevWidth, currentLayer.height, currentLayer.zPos, prevType, bevelSuffix, layerCollection, params)
+            appendToTypeDict(curveOB, curveType)
+
+            if (curveType in ["External_perimeter", "Skirt_Brim"] and not curveOB == None ):
+                endPoint, startPoint = createEndPoints(curveOB)
+                layerCollection.objects.link(endPoint)
+                layerCollection.objects.link(startPoint)
+                appendToTypeDict(endPoint, "End_Point")
+                appendToTypeDict(startPoint, "End_Point")
+
+        for elem in currentLayer.gcodes:
             #print(elem)
             if (elem["E"] > 0):
                 if (elem['W'] == prevWidth and elem['type'] == prevType):
                     coords.append((elem['X'],elem['Y'],elem['Z']))
                 else:
-                    curveOB = placeCurveAnonFunc()
-                    appendToTypeDict(curveOB, prevType)
+                    placeCurveFunc(prevType)
+            
                     prevWidth = elem['W']
                     prevType = elem['type']
                     coords = coords[-1:]
@@ -266,14 +278,12 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
                 
             else:
                 
-                curveOB = placeCurveAnonFunc()
-                appendToTypeDict(curveOB, prevType)
-                
+                placeCurveFunc(prevType)
                 coords = [(elem['X'],elem['Y'],elem['Z'])]
 
             
-        curveOB = placeCurveAnonFunc()
-        appendToTypeDict(curveOB, prevType)
+        placeCurveFunc(prevType)
+
         i = i + 1
 
 
