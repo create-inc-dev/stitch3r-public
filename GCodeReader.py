@@ -261,7 +261,7 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
     parentCollection =  bpy.data.collections.new(objectName)
     bpy.context.scene.collection.children.link(parentCollection)
 
-    for currentLayer in listOfParsedLayers[0:10]:
+    for currentLayer in listOfParsedLayers[0:15]:
         prevWidth = 0
         prevType = "Custom"
         coords = []
@@ -295,6 +295,8 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
                 layerCollection.objects.link(startPoint)
                 appendToTypeDict(endPoint, "End_Point")
                 appendToTypeDict(startPoint, "End_Point")
+                addVisibilityDriver(endPoint)
+                addVisibilityDriver(startPoint)
 
         for elem in currentLayer.gcodes:
             #print(elem)

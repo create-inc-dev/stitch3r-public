@@ -72,14 +72,18 @@ def createEndPoints(curveOB, seamDistanceProp = "Buddy_Props.SeamDistance"):
     if (bevelShape == None):
         raise ImproperCruveException(curveOB)
 
-    try:
-        curveOB.data["lengthOfCurve"]
-    except KeyError:
-        raise ImproperCruveException(curveOB)
+    
     
     endPointBevel = createEndPoint(curveOB, bevelShape)
     startPointBevel = createStartPoint(curveOB, bevelShape)
     
+    try:
+        curveOB.data["lengthOfCurve"]
+        endPointBevel.data["layerNumber"] = startPointBevel.data["layerNumber"] = curveOB.data["layerNumber"]
+        endPointBevel.data["type"] = startPointBevel.data["type"] = "End_Point"
+
+    except KeyError:
+        raise ImproperCruveException(curveOB)
 
     curveOB.data["startOffset"] = 0.00
     curveOB.data["endOffset"] = 0.00
