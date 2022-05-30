@@ -24,3 +24,9 @@ class NoSuchPropertyException(Exception):
         self.key = key
         self.message = "`{}` key is not a valid parameter.".fromat(key)
         super().__init__(self.message)
+
+class ImproperCruveException(Exception):
+    def __init__(self, curveOB) -> None:
+        self.curveOB = curveOB
+        self.message = "`{}` is not a proper curve, something went wrong with the addon\nPlease report the bug.".fromat(curveOB)
+        super().__init__(self.message)

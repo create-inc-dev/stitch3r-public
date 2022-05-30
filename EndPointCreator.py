@@ -1,5 +1,9 @@
 import bpy
 import math
+import sys
+
+moduleParentName = '.'.join(__name__.split('.')[:-1])
+ImproperCruveException = sys.modules[moduleParentName + '.Exceptions'].ImproperCruveException
 
 def createEndPoint(curveOB, bevelShape): ##End point rounding
 
@@ -63,8 +67,15 @@ def createStartPoint(curveOB, bevelShape): ##Start point rounding
     return startPointBevel
 
 def createEndPoints(curveOB, seamDistanceProp = "Buddy_Props.SeamDistance"):
+    
     bevelShape = curveOB.data.bevel_object
+    if (bevelShape == None):
+        raise ImproperCruveException(curveOB)
 
+    try:
+        curveOB.data["lengthOfCurve"]
+    except KeyError:
+        raise ImproperCruveException(curveOB)
     
     endPointBevel = createEndPoint(curveOB, bevelShape)
     startPointBevel = createStartPoint(curveOB, bevelShape)

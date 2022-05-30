@@ -13,7 +13,7 @@ bl_info = {
     'description': 'An example addon',
 }
 
-modulesNames = [ 'EndPointCreator', 'Exceptions', 'BevelShapeCreator', 'GCodeReader' ]
+modulesNames = [ 'Exceptions', 'EndPointCreator', 'BevelShapeCreator', 'GCodeReader' ]
 
 modulesFullNames = {}
 for currentModuleName in modulesNames:
@@ -110,14 +110,15 @@ class Buddy_Props(bpy.types.PropertyGroup):
     End_Point: bpy.props.BoolProperty(name='End Point', default=True)
 
     SeamDistance: bpy.props.FloatProperty(name='Seam Distance', default=0.2, description='How far apart should the seams be to get a desired look', min=0)
-    
+    LayerIndexTop: bpy.props.IntProperty(name='Layer Index', default=5000, description='The topmost layer to show, every layer after this would be hidden', min=0)
+
 
 CLASSES = [
     Buddy_Props, Options, Filters, GCodeLoaderOperator, FilterUpdaterOperator
 ]
 
 propsMain = [
-    'ObjectName', 'BevelName', 'FilePath', 'SeamDistance'
+    'ObjectName', 'BevelName', 'FilePath', 'SeamDistance', 'LayerIndexTop'
     ]
 
 propsFilter = ['Gap_fill', 'External_perimeter', 'Perimeter', 'Top_solid_infill', 'Bridge_infill', 'Internal_infill', 'Custom', 'Solid_infill', 'Skirt_Brim', 'End_Point']

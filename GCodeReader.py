@@ -15,6 +15,7 @@ NoZPosMatch = sys.modules[moduleParentName + '.Exceptions'].NoZPosMatch
 NoHeightMatch = sys.modules[moduleParentName + '.Exceptions'].NoHeightMatch
 NoSuchPropertyException = sys.modules[moduleParentName + '.Exceptions'].NoSuchPropertyException
 createEndPoints = sys.modules[moduleParentName + '.EndPointCreator'].createEndPoints
+ImproperCruveException = sys.modules[moduleParentName + '.Exceptions'].ImproperCruveException
 
 class Layer: #Class that stores information about the layer. Needs to change because there are different widths in the same layer as well
     def __init__(self, zPos, height, layerNumber, gcodes) -> None:
@@ -128,9 +129,36 @@ def gcodeParser(gcodeFilePath, params):
     
     return listOfParsedLayers
 
+def addVisibilityDriver(curveOB):
+    try:
+        curveType = curveOB.data["type"]
+    except KeyError:
+        raise ImproperCruveException(curveOB)
+
+    driver = curveOB.driver_add("hide_viewport").driver
+    var0 = driver.variables.new()
+    var0.name = "var0"
+    var0.targets[0].id_type = 'SCENE'
+    var0.targets[0].id = bpy.context.scene
+    var0.targets[0].data_path = "Buddy_Props.LayerIndexTop"
+
+    var1 = driver.variables.new()
+    var1.name = "var1"
+    var1.targets[0].id_type = 'SCENE'
+    var1.targets[0].id = bpy.context.scene
+    var1.targets[0].data_path = "Buddy_Props." + curveType
+
+    var2 = driver.variables.new()
+    var2.name = "var2"
+    var2.targets[0].id = curveOB
+    var2.targets[0].data_path = 'data["layerNumber"]'
+
+    driver.expression = "not ({1} and {2} <= {0})".format(var0.name, var1.name, var2.name)
+
+
 
 #Take the parsed GCode and finally make it into a curve that is beveled on blender
-def placeCurve(coords, width, height, zPos, type, bevelSuffix, collection, params):
+def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix, collection, params):
     
     widthOffset = getFromParam('widthOffset',params)
     heightOffset = getFromParam('heightOffset',params)
@@ -162,9 +190,12 @@ def placeCurve(coords, width, height, zPos, type, bevelSuffix, collection, param
         curveOB = bpy.data.objects.new('myCurve', curveData)
         #curveOB.data.bevel_depth = 0.1
         curveOB.data["zPos"] = zPos
-        curveOB.data["type"] = type
+        curveOB.data["type"] = re.sub(" |/","_", curveType)
         curveOB.data["lengthOfCurve"] = lengthOfCurve
+        curveOB.data["layerNumber"] = layerNumber
         curveOB.hide_viewport = True
+
+
 
         bevelName = ("{:."+str(precision)+"f}").format(width + widthOffset) + "_" + ("{:."+str(precision)+"f}").format(height + heightOffset) + "_" + bevelSuffix
 
@@ -230,7 +261,7 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
     parentCollection =  bpy.data.collections.new(objectName)
     bpy.context.scene.collection.children.link(parentCollection)
 
-    for currentLayer in listOfParsedLayers:
+    for currentLayer in listOfParsedLayers[0:10]:
         prevWidth = 0
         prevType = "Custom"
         coords = []
@@ -253,7 +284,9 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
 
         def placeCurveFunc(curveType):
             curveType = re.sub(" |/","_", curveType)
-            curveOB = placeCurve(coords, prevWidth, currentLayer.height, currentLayer.zPos, prevType, bevelSuffix, layerCollection, params)
+            curveOB = placeCurve(coords, prevWidth, currentLayer.height, currentLayer.zPos, prevType, currentLayer.layerNumber, bevelSuffix, layerCollection, params)
+            if (not curveOB == None):
+                addVisibilityDriver(curveOB)
             appendToTypeDict(curveOB, curveType)
 
             if (curveType in ["External_perimeter", "Skirt_Brim"] and not curveOB == None ):
@@ -290,7 +323,7 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
     ## Felt experimental might delete later
     bpy.context.scene['typeDictionary'] = typeDictionary
     
-    toggleVisibility(filters)
+    #toggleVisibility(filters)
     
             
 
