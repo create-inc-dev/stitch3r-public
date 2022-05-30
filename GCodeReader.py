@@ -91,7 +91,8 @@ def gcodeParser(gcodeFilePath, params):
             valueTacker['W'] = round(float(widthPattern.search(line)[1]), precision)
 
         elif bool(typePattern.match(line)):
-            valueTacker['type'] = typePattern.search(line)[1].strip()
+            curveType = typePattern.search(line)[1].strip()
+            valueTacker['type'] = re.sub(" |/","_", curveType)
             
         elif bool(gcodePattern.match(line)):
             
@@ -155,6 +156,15 @@ def addVisibilityDriver(curveOB):
 
     driver.expression = "not ({1} and {2} <= {0})".format(var0.name, var1.name, var2.name)
 
+    if ('parent' in curveOB.data.keys()):
+        var3 = driver.variables.new()
+        var3.name = "var3"
+        var3.targets[0].id = curveOB.data['parent']
+        var3.targets[0].data_path = 'hide_viewport'
+
+        driver.expression = "not ({1} and {2} <= {0}) or {3} ".format(var0.name, var1.name, var2.name, var3.name)
+
+
 
 
 #Take the parsed GCode and finally make it into a curve that is beveled on blender
@@ -190,7 +200,7 @@ def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix,
         curveOB = bpy.data.objects.new('myCurve', curveData)
         #curveOB.data.bevel_depth = 0.1
         curveOB.data["zPos"] = zPos
-        curveOB.data["type"] = re.sub(" |/","_", curveType)
+        curveOB.data["type"] = curveType
         curveOB.data["lengthOfCurve"] = lengthOfCurve
         curveOB.data["layerNumber"] = layerNumber
         curveOB.hide_viewport = True
@@ -227,18 +237,6 @@ def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix,
         
         return curveOB
 
-def toggleVisibility(filters):
-    listOfCurves = bpy.context.scene['typeDictionary']
-
-    for key in filters.keys():
-        if ( key in listOfCurves.keys()):
-            if (filters[key]):
-                for obj in listOfCurves[key]:
-                    obj.hide_viewport = False
-            else:
-                for obj in listOfCurves[key]:
-                    obj.hide_viewport = True
-
 
 defaultParams = { 'widthOffset':0, 'heightOffset':0, 'precision': 2 }
 def getFromParam(key, params):
@@ -253,8 +251,7 @@ def getFromParam(key, params):
 def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}, filters = {}):
     
     listOfParsedLayers = gcodeParser(gcodeFilePath, params)
-    typeDictionary = {}
-    layerDictionary = []
+
 
     i = 0
     
@@ -270,31 +267,22 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
         layerCollection = bpy.data.collections.new("Layer " + str(currentLayer.layerNumber))
         parentCollection.children.link(layerCollection)
 
-        layerDictionary.append(layerCollection)
         #currentLayer.gcodes = filter(lambda x: 67870 < x['lineNumber'] and x['lineNumber'] <= 67966 ,currentLayer.gcodes)
         
-        def appendToTypeDict(curve, curveType):
-            
-            if (not curve == None):
-                if curveType in typeDictionary.keys():
-                    typeDictionary[curveType].append(curve)
-                else: 
-                    typeDictionary.update({curveType: []})
-                    typeDictionary[curveType].append(curve)
+        
 
         def placeCurveFunc(curveType):
-            curveType = re.sub(" |/","_", curveType)
+            
             curveOB = placeCurve(coords, prevWidth, currentLayer.height, currentLayer.zPos, prevType, currentLayer.layerNumber, bevelSuffix, layerCollection, params)
             if (not curveOB == None):
                 addVisibilityDriver(curveOB)
-            appendToTypeDict(curveOB, curveType)
+            
 
             if (curveType in ["External_perimeter", "Skirt_Brim"] and not curveOB == None ):
                 endPoint, startPoint = createEndPoints(curveOB)
                 layerCollection.objects.link(endPoint)
                 layerCollection.objects.link(startPoint)
-                appendToTypeDict(endPoint, "End_Point")
-                appendToTypeDict(startPoint, "End_Point")
+                
                 addVisibilityDriver(endPoint)
                 addVisibilityDriver(startPoint)
 
@@ -320,12 +308,6 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
         placeCurveFunc(prevType)
 
         i = i + 1
-
-
-    ## Felt experimental might delete later
-    bpy.context.scene['typeDictionary'] = typeDictionary
-    
-    #toggleVisibility(filters)
     
             
 

@@ -88,9 +88,6 @@ class Filters(PanelParent):
             row = col.row()
             row.prop(context.scene.Buddy_Props, propName)
         
-        row = col.row()
-        col.operator('opr.filter_updater', text='Update Filters')
-        
         
 
 class Buddy_Props(bpy.types.PropertyGroup):
