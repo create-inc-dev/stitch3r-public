@@ -164,6 +164,16 @@ def addVisibilityDriver(curveOB):
 
         driver.expression = "not ({1} and {2} <= {0}) or {3} ".format(var0.name, var1.name, var2.name, var3.name)
 
+    driver = curveOB.driver_add("hide_render").driver
+    var = driver.variables.new()
+    var.targets[0].id = curveOB
+    var.targets[0].data_path = 'hide_viewport'
+
+    driver.expression = var.name
+
+
+
+
 
 
 
@@ -258,7 +268,8 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
     parentCollection =  bpy.data.collections.new(objectName)
     bpy.context.scene.collection.children.link(parentCollection)
 
-    for currentLayer in listOfParsedLayers[0:15]:
+    for currentLayer in listOfParsedLayers[0:84]:
+        print(currentLayer.height)
         prevWidth = 0
         prevType = "Custom"
         coords = []

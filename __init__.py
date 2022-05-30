@@ -97,6 +97,7 @@ class Buddy_Props(bpy.types.PropertyGroup):
         
     Gap_fill: bpy.props.BoolProperty(name='Gap fill', default=True)
     External_perimeter: bpy.props.BoolProperty(name='External perimeter', default=True)
+    Overhang_perimeter: bpy.props.BoolProperty(name='Overhang perimeter', default=True)
     Perimeter: bpy.props.BoolProperty(name='Perimeter', default=True)
     Top_solid_infill: bpy.props.BoolProperty(name='Top solid infill', default=True)
     Bridge_infill: bpy.props.BoolProperty(name='Bridge infill', default=True)
@@ -104,7 +105,11 @@ class Buddy_Props(bpy.types.PropertyGroup):
     Custom: bpy.props.BoolProperty(name='Custom', default=True)
     Solid_infill: bpy.props.BoolProperty(name='Solid infill', default=True)
     Skirt_Brim: bpy.props.BoolProperty(name='Skirt/Brim', default=True)
+    Support_material: bpy.props.BoolProperty(name='Support material', default=True)
+    Support_material_interface: bpy.props.BoolProperty(name='Support material interface', default=True)
+
     End_Point: bpy.props.BoolProperty(name='End Point', default=True)
+
 
     SeamDistance: bpy.props.FloatProperty(name='Seam Distance', default=0.2, description='How far apart should the seams be to get a desired look', min=0)
     LayerIndexTop: bpy.props.IntProperty(name='Layer Index', default=5000, description='The topmost layer to show, every layer after this would be hidden', min=0)
@@ -118,7 +123,7 @@ propsMain = [
     'ObjectName', 'BevelName', 'FilePath', 'SeamDistance', 'LayerIndexTop'
     ]
 
-propsFilter = ['Gap_fill', 'External_perimeter', 'Perimeter', 'Top_solid_infill', 'Bridge_infill', 'Internal_infill', 'Custom', 'Solid_infill', 'Skirt_Brim', 'End_Point']
+propsFilter = ['Gap_fill', 'External_perimeter', 'Perimeter', 'Top_solid_infill', 'Bridge_infill', 'Internal_infill', 'Custom', 'Solid_infill', 'Skirt_Brim', 'End_Point', 'Overhang_perimeter', 'Support_material', 'Support_material_interface']
 
 
 
