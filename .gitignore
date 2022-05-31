@@ -3,3 +3,6 @@
 /assets
 /__pycache__
 ExecutionTester.py
+tester.py
+/.vscode
+!/assets/assets.blend

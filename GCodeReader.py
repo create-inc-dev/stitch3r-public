@@ -48,53 +48,14 @@ def gcodeParser(gcodeFilePath, params):
     curLineNumber = 0 #For error tracing
     curLayerNumber = 0
 
-    valueTacker = {'X':0, 'Y':0, 'Z':0, 'E':0, 'W':0.5, 'layerNumber':0, 'type':'Custom'} #E is extrusion; X, Y and Z are the coordinates; W is width of the  print line
+    valueTacker = {'X':0, 'Y':0, 'Z':0, 'E':0, 'W':0.5, 'H':0.2, 'layerNumber':0, 'type':'Custom'} #E is extrusion; X, Y and Z are the coordinates; W is width of the  print line
 
     precision = getFromParam('precision',params)
     while True:
         line = file.readline()
         curLineNumber = curLineNumber + 1
         
-        
-        if bool(layerChangePattern.match(line)):
-            zPos = 0
-            height = 0
-
-            try:
-                line = file.readline()
-                curLineNumber = curLineNumber + 1
-                zPos = float(zPosPattern.search(line)[1])
-            except (IndexError, TypeError):
-                raise NoZPosMatch(line, curLineNumber)
-
-            try:
-                line = file.readline()
-                curLineNumber = curLineNumber + 1
-                height = float(heightPattern.search(line)[1])
-
-            except (IndexError, TypeError):
-                raise NoHeightMatch(line, curLineNumber)
-
-
-            prevLayer = Layer(prevLayerZPos, prevLayerHeight, curLayerNumber, prevLayerGcodes)
-            listOfParsedLayers.append(prevLayer)
-
-            
-            prevLayerGcodes = []
-            prevLayerZPos = zPos
-            prevLayerHeight = height
-            curLayerNumber = curLayerNumber + 1
-
-            
-
-        elif bool(widthPattern.match(line)):
-            valueTacker['W'] = round(float(widthPattern.search(line)[1]), precision)
-
-        elif bool(typePattern.match(line)):
-            curveType = typePattern.search(line)[1].strip()
-            valueTacker['type'] = re.sub(" |/","_", curveType)
-            
-        elif bool(gcodePattern.match(line)):
+        if bool(gcodePattern.match(line)):
             
             gcodePart = gcodePattern.search(line)[1].strip()
             commentPart = ""
@@ -116,10 +77,48 @@ def gcodeParser(gcodeFilePath, params):
                 tempDict['lineNumber'] = curLineNumber
                 
                 prevLayerGcodes.append(tempDict.copy())
-            
-            
         
+        elif bool(layerChangePattern.match(line)):
+            zPos = 0
+            height = 0
 
+            try:
+                line = file.readline()
+                curLineNumber = curLineNumber + 1
+                zPos = float(zPosPattern.search(line)[1])
+            except (IndexError, TypeError):
+                raise NoZPosMatch(line, curLineNumber)
+
+            try:
+                line = file.readline()
+                curLineNumber = curLineNumber + 1
+                height = float(heightPattern.search(line)[1])
+                valueTacker['H'] = height
+                
+            except (IndexError, TypeError):
+                raise NoHeightMatch(line, curLineNumber)
+
+
+            prevLayer = Layer(prevLayerZPos, prevLayerHeight, curLayerNumber, prevLayerGcodes)
+            listOfParsedLayers.append(prevLayer)
+
+            
+            prevLayerGcodes = []
+            prevLayerZPos = zPos
+            prevLayerHeight = height
+            curLayerNumber = curLayerNumber + 1
+
+            
+        elif bool(heightPattern.match(line)):
+            valueTacker['H'] = round(float(heightPattern.search(line)[1]), precision)
+
+        elif bool(widthPattern.match(line)):
+            valueTacker['W'] = round(float(widthPattern.search(line)[1]), precision)
+
+        elif bool(typePattern.match(line)):
+            curveType = typePattern.search(line)[1].strip()
+            valueTacker['type'] = re.sub(" |/","_", curveType)
+            
         elif not line:
             prevLayer = Layer(prevLayerZPos, prevLayerHeight, curLayerNumber, prevLayerGcodes)
             listOfParsedLayers.append(prevLayer)
@@ -164,12 +163,12 @@ def addVisibilityDriver(curveOB):
 
         driver.expression = "not ({1} and {2} <= {0}) or {3} ".format(var0.name, var1.name, var2.name, var3.name)
 
-    driver = curveOB.driver_add("hide_render").driver
+    """driver = curveOB.driver_add("hide_render").driver
     var = driver.variables.new()
     var.targets[0].id = curveOB
     var.targets[0].data_path = 'hide_viewport'
 
-    driver.expression = var.name
+    driver.expression = var.name"""
 
 
 
@@ -268,10 +267,11 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
     parentCollection =  bpy.data.collections.new(objectName)
     bpy.context.scene.collection.children.link(parentCollection)
 
-    for currentLayer in listOfParsedLayers[0:84]:
-        print(currentLayer.height)
+    for currentLayer in listOfParsedLayers:
+        
         prevWidth = 0
         prevType = "Custom"
+        prevHeight = 0
         coords = []
 
         
@@ -284,7 +284,7 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
 
         def placeCurveFunc(curveType):
             
-            curveOB = placeCurve(coords, prevWidth, currentLayer.height, currentLayer.zPos, prevType, currentLayer.layerNumber, bevelSuffix, layerCollection, params)
+            curveOB = placeCurve(coords, prevWidth, prevHeight, currentLayer.zPos, prevType, currentLayer.layerNumber, bevelSuffix, layerCollection, params)
             if (not curveOB == None):
                 addVisibilityDriver(curveOB)
             
@@ -300,13 +300,15 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
         for elem in currentLayer.gcodes:
             #print(elem)
             if (elem["E"] > 0):
-                if (elem['W'] == prevWidth and elem['type'] == prevType):
+                if (elem['W'] == prevWidth and elem['type'] == prevType and elem['H'] == prevHeight):
                     coords.append((elem['X'],elem['Y'],elem['Z']))
                 else:
                     placeCurveFunc(prevType)
             
                     prevWidth = elem['W']
                     prevType = elem['type']
+                    prevHeight = elem['H']
+
                     coords = coords[-1:]
                     coords.append((elem['X'],elem['Y'],elem['Z']))
                 

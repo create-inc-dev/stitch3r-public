@@ -44,20 +44,6 @@ class GCodeLoaderOperator(bpy.types.Operator):
         sys.modules[modulesFullNames['GCodeReader']].builder(fileName, params={'widthOffset':-0.06}, filters=filters)
         return {'FINISHED'}
 
-class FilterUpdaterOperator(bpy.types.Operator):
-    
-    bl_idname = 'opr.filter_updater'
-    bl_label = 'Update Filters'
-    
-    def execute(self, context):
-
-        filters = {}
-        for prop in propsFilter:
-            filters[prop] = getattr(bpy.context.scene.Buddy_Props, prop)
-
-        sys.modules[modulesFullNames['GCodeReader']].toggleVisibility(filters=filters)
-        return {'FINISHED'}
-
 class PanelParent(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -88,7 +74,16 @@ class Filters(PanelParent):
             row = col.row()
             row.prop(context.scene.Buddy_Props, propName)
         
-        
+class Animatable(PanelParent):
+    bl_parent_id = "VIEW3D_PT_panel_options"
+    bl_idname = 'VIEW3D_PT_panel_animatable'
+    bl_label = "Animatable"
+
+    def draw(self, context):
+        col = self.layout.column()
+        for propName in propsAnimatable:
+            row = col.row()
+            row.prop(context.scene.Buddy_Props, propName)
 
 class Buddy_Props(bpy.types.PropertyGroup):
     ObjectName: bpy.props.StringProperty(name='Object Name', description='What to name the imported object collection', default='OBJECT')
@@ -116,15 +111,15 @@ class Buddy_Props(bpy.types.PropertyGroup):
 
 
 CLASSES = [
-    Buddy_Props, Options, Filters, GCodeLoaderOperator, FilterUpdaterOperator
+    Buddy_Props, Options, Filters, GCodeLoaderOperator, Animatable
 ]
 
 propsMain = [
-    'ObjectName', 'BevelName', 'FilePath', 'SeamDistance', 'LayerIndexTop'
+    'ObjectName', 'BevelName', 'FilePath'
     ]
 
 propsFilter = ['Gap_fill', 'External_perimeter', 'Perimeter', 'Top_solid_infill', 'Bridge_infill', 'Internal_infill', 'Custom', 'Solid_infill', 'Skirt_Brim', 'End_Point', 'Overhang_perimeter', 'Support_material', 'Support_material_interface']
-
+propsAnimatable = ['SeamDistance', 'LayerIndexTop']
 
 
 def register():
