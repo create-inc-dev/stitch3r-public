@@ -129,13 +129,13 @@ def gcodeParser(gcodeFilePath, params):
     
     return listOfParsedLayers
 
-def addVisibilityDriver(curveOB):
+def addVisibilityDriver(curveOB, drivenProperty="hide_viewport"):
     try:
         curveType = curveOB.data["type"]
     except KeyError:
         raise ImproperCruveException(curveOB)
 
-    driver = curveOB.driver_add("hide_viewport").driver
+    driver = curveOB.driver_add(drivenProperty).driver
     var0 = driver.variables.new()
     var0.name = "var0"
     var0.targets[0].id_type = 'SCENE'
@@ -150,8 +150,9 @@ def addVisibilityDriver(curveOB):
 
     var2 = driver.variables.new()
     var2.name = "var2"
-    var2.targets[0].id = curveOB
-    var2.targets[0].data_path = 'data["layerNumber"]'
+    var2.targets[0].id_type = curveOB.type
+    var2.targets[0].id = curveOB.data
+    var2.targets[0].data_path = '["layerNumber"]'
 
     driver.expression = "not ({1} and {2} <= {0})".format(var0.name, var1.name, var2.name)
 
@@ -159,16 +160,9 @@ def addVisibilityDriver(curveOB):
         var3 = driver.variables.new()
         var3.name = "var3"
         var3.targets[0].id = curveOB.data['parent']
-        var3.targets[0].data_path = 'hide_viewport'
+        var3.targets[0].data_path = drivenProperty
 
         driver.expression = "not ({1} and {2} <= {0}) or {3} ".format(var0.name, var1.name, var2.name, var3.name)
-
-    """driver = curveOB.driver_add("hide_render").driver
-    var = driver.variables.new()
-    var.targets[0].id = curveOB
-    var.targets[0].data_path = 'hide_viewport'
-
-    driver.expression = var.name"""
 
 
 
@@ -278,7 +272,8 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
         layerCollection = bpy.data.collections.new("Layer " + str(currentLayer.layerNumber))
         parentCollection.children.link(layerCollection)
 
-        #currentLayer.gcodes = filter(lambda x: 67870 < x['lineNumber'] and x['lineNumber'] <= 67966 ,currentLayer.gcodes)
+        #Below line is used for debugging particular lines of gcode
+        #currentLayer.gcodes = filter(lambda x: 73 < x['lineNumber'] and x['lineNumber'] <= 93 ,currentLayer.gcodes)
         
         
 
@@ -286,7 +281,8 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
             
             curveOB = placeCurve(coords, prevWidth, prevHeight, currentLayer.zPos, prevType, currentLayer.layerNumber, bevelSuffix, layerCollection, params)
             if (not curveOB == None):
-                addVisibilityDriver(curveOB)
+                addVisibilityDriver(curveOB, "hide_viewport")
+                addVisibilityDriver(curveOB, "hide_render")
             
 
             if (curveType in ["External_perimeter", "Skirt_Brim"] and not curveOB == None ):
@@ -294,8 +290,10 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
                 layerCollection.objects.link(endPoint)
                 layerCollection.objects.link(startPoint)
                 
-                addVisibilityDriver(endPoint)
-                addVisibilityDriver(startPoint)
+                addVisibilityDriver(endPoint, "hide_viewport")
+                addVisibilityDriver(startPoint, "hide_viewport")
+                addVisibilityDriver(endPoint, "hide_render")
+                addVisibilityDriver(startPoint, "hide_render")
 
         for elem in currentLayer.gcodes:
             #print(elem)

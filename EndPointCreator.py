@@ -100,8 +100,9 @@ def createEndPoints(curveOB, seamDistanceProp = "Buddy_Props.SeamDistance"):
 
     var1 = driver.variables.new()
     var1.name = "var2"
-    var1.targets[0].id = curveOB
-    var1.targets[0].data_path = 'data["lengthOfCurve"]'
+    var1.targets[0].id_type = curveOB.type
+    var1.targets[0].id = curveOB.data
+    var1.targets[0].data_path = '["lengthOfCurve"]'
 
     driver.expression = "(1 - ({1} - {0})/{1})".format(var0.name, var1.name)
 
@@ -115,8 +116,9 @@ def createEndPoints(curveOB, seamDistanceProp = "Buddy_Props.SeamDistance"):
 
     var1 = driver.variables.new()
     var1.name = "var2"
-    var1.targets[0].id = curveOB
-    var1.targets[0].data_path = 'data["lengthOfCurve"]'
+    var1.targets[0].id_type = curveOB.type
+    var1.targets[0].id = curveOB.data
+    var1.targets[0].data_path = '["lengthOfCurve"]'
 
     driver.expression = "({1} - {0})/{1}".format(var0.name, var1.name)
 
