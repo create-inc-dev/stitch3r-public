@@ -55,16 +55,17 @@ def gcodeParser(gcodeFilePath, params):
         if bool(gcodePattern.match(line)):
             
             gcodePart = gcodePattern.search(line)[1].strip()
-            commentPart = ""
+            """commentPart = "" ##Only needed if there is a need to process comments later
 
             try:
                 commentPart = gcodePattern.search(line)[2].strip()
             except (IndexError, AttributeError):
-                pass
+                pass"""
 
             separatedGcode = gcodePart.split()
             tempDict = valueTacker.copy()
             
+            #Ignore any GCode G0/G1 command that doesn't move the extruder
             if not bool(nonMovingGcodePattern.match(gcodePart)):
                 
                 for term in separatedGcode:
@@ -75,7 +76,8 @@ def gcodeParser(gcodeFilePath, params):
                 
                 prevLayerGcodes.append(tempDict.copy())
         
-        elif bool(layerChangePattern.match(line)):
+        #In case of layer change, push the accumulated GCodes of previous layer and start accumulating the next one.
+        elif bool(layerChangePattern.match(line)):  
             zPos = 0
             height = 0
 
@@ -153,6 +155,8 @@ def addVisibilityDriver(curveOB, drivenProperty="hide_viewport"):
 
     driver.expression = "not ({1} and {2} <= {0})".format(var0.name, var1.name, var2.name)
 
+    ##The rounded starting and end points would have a parent parameter that points to the curve they are placed on.
+    ##It's import to tie their visbility to their parent
     if ('parent' in curveOB.data.keys()):
         var3 = driver.variables.new()
         var3.name = "var3"
@@ -177,12 +181,16 @@ def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix,
     lengthOfCurve = 0
 
     if (len(coords) > 1):
-        #print("Curve placed")
+        
+        #Create new curve data and set it's properties
+        #Dimensions are set to 3D because setting it to 2D produces weird bugs and artefacts
         curveData = bpy.data.curves.new('myCurve', type='CURVE')
         curveData.dimensions = '3D'
         curveData.resolution_u = 1
         curveData.render_resolution_u = 12
 
+        #It's not a polyline curve, it's a bezier curve being edited to emulate a polyline curve.
+        #A polyline curve was giving uneven thickness when beveled
         polyline = curveData.splines.new('BEZIER')
         polyline.bezier_points.add(len(coords)-1)
         bevelObject = None
@@ -197,9 +205,10 @@ def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix,
             lengthOfCurve = lengthOfCurve + math.dist(prevCoord, coord)
             prevCoord = coord
 
-        view_layer = bpy.context.view_layer
+        
         curveOB = bpy.data.objects.new('myCurve', curveData)
-        #curveOB.data.bevel_depth = 0.1
+        
+        #Properties for debugging and other uses
         curveOB.data["zPos"] = zPos
         curveOB.data["type"] = curveType
         curveOB.data["lengthOfCurve"] = lengthOfCurve
@@ -221,10 +230,10 @@ def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix,
         curveData.use_fill_caps = True
 
     
-        ## Delte after testing
+        #Material was already imported from assets.blend file when the "Load GCode" button was pressed
         mat = bpy.data.materials.get("My Material")
         curveOB.data.materials.append(mat)
-        ## Delte after testing        
+          
 
         #Aplly modifier to smooth out overlap artefacts, only shows in renders
         curveOB.modifiers.new('split', 'EDGE_SPLIT')

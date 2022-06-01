@@ -6,3 +6,6 @@ class ParamNames:
 
     amount = "Amount"
     probability = "Probability"
+
+class Keywords:
+    layerNumber = "layerNumber"
