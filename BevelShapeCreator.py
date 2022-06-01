@@ -1,15 +1,20 @@
 import bpy
 
-def createProfile(width, height, curveName="bevel", collectionName="bevelCollection"):
+def createProfile(width, height, roundness, curveName="bevel", collectionName="bevelCollection"):
     curveData = bpy.data.curves.new(curveName, type='CURVE')
     curveData.dimensions = '2D'
     curveData.resolution_u = 8
 
+    radius = height/2 * roundness
+    handleDistance = 4/3 * radius
+
+    xCoord = width/2 - radius
+    yCoord = height
     
-    point1 = [(-1*(width - height)/2, 0, 0), (-1*((width - height)/2 + height),0,0), (-1*((width - height)/2 - height),0,0)]
-    point2 = [((width - height)/2, 0, 0), ((width - height)/2 - height,0,0), ((width - height)/2 + height,0,0)]
-    point3 = [((width - height)/2, -1*height, 0), ((width - height)/2 + height, -1*height, 0), ((width - height)/2 - height, -1*height, 0)]
-    point4 = [(-1*(width - height)/2, -1*height, 0), (-1*(width - height)/2 + height, -1*height, 0), (-1*(width - height)/2 - height, -1*height, 0)]
+    point1 = [(-1*xCoord, 0, 0), (-1*(xCoord + handleDistance),0,0), (-1*(xCoord - handleDistance),0,0)]
+    point2 = [(xCoord, 0, 0), (xCoord - handleDistance,0,0), (xCoord + handleDistance,0,0)]
+    point3 = [(xCoord, -1*yCoord, 0), (xCoord + handleDistance, -1*yCoord, 0), (xCoord - handleDistance, -1*yCoord, 0)]
+    point4 = [(-1*xCoord, -1*yCoord, 0), (-1*(xCoord - handleDistance), -1*yCoord, 0), (-1*(xCoord + handleDistance), -1*yCoord, 0)]
 
     coords = [point1, point2, point3, point4]
 
@@ -44,7 +49,7 @@ def createProfile(width, height, curveName="bevel", collectionName="bevelCollect
 
 
 
-if __name__ == "__main__": createProfile(0.5,0.2)
+if __name__ == "__main__": createProfile(0.5,0.2,1)
 
 
     

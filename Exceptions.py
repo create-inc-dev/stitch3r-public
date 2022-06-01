@@ -22,11 +22,11 @@ class NotVerbose(FormatException):
 class NoSuchPropertyException(Exception):
     def __init__(self, key) -> None:
         self.key = key
-        self.message = "`{}` key is not a valid parameter.".fromat(key)
+        self.message = "`{}` key is not a valid parameter.".format(key)
         super().__init__(self.message)
 
 class ImproperCruveException(Exception):
     def __init__(self, curveOB) -> None:
         self.curveOB = curveOB
-        self.message = "`{}` is not a proper curve, something went wrong with the addon\nPlease report the bug.".fromat(curveOB)
+        self.message = "`{}` is not a proper curve, something went wrong with the addon\nPlease report the bug.".format(curveOB)
         super().__init__(self.message)

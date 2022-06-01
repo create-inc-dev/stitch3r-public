@@ -13,7 +13,7 @@ bl_info = {
     'description': 'An example addon',
 }
 
-modulesNames = [ 'Exceptions', 'EndPointCreator', 'BevelShapeCreator', 'GCodeReader' ]
+modulesNames = [ 'Constants', 'Exceptions', 'EndPointCreator', 'BevelShapeCreator', 'GCodeReader' ]
 
 modulesFullNames = {}
 for currentModuleName in modulesNames:
@@ -36,12 +36,39 @@ class GCodeLoaderOperator(bpy.types.Operator):
     def execute(self, context):
 
         fileName = getattr(bpy.context.scene.Buddy_Props, 'FilePath')
-        filters = {}
+        
+        params = {}
+        for propGroup in propsNonAnimatable:
+            
+            if (isinstance(propGroup, str)):
+                params[propGroup] = getattr(bpy.context.scene.Buddy_Props, propGroup)
+            elif(isinstance(propGroup, tuple)):
+                params[propGroup[0]] = {}
+                for prop in propGroup[1:]:
+                    params[propGroup[0]][prop[1]] = getattr(bpy.context.scene.Buddy_Props, prop[0])
+                    
 
-        for prop in propsFilter:
-            filters[prop] = getattr(bpy.context.scene.Buddy_Props, prop)
+        filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets.blend")
+        with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
+            data_to.materials = ["My Material"]
 
-        sys.modules[modulesFullNames['GCodeReader']].builder(fileName, params={'widthOffset':-0.06}, filters=filters)
+        
+        sys.modules[modulesFullNames['GCodeReader']].builder(fileName, params=params)
+        return {'FINISHED'}
+
+class AssetLoaderOperator(bpy.types.Operator):
+    
+    bl_idname = 'opr.asset_loader'
+    bl_label = 'Load Assets'
+    
+    def execute(self, context):
+        filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets.blend")
+        with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
+            data_to.collections = ["Import Things"]
+        
+        for col in data_to.collections:
+            if col is not None:
+                bpy.context.scene.collection.children.link(col)
         return {'FINISHED'}
 
 class PanelParent(bpy.types.Panel):
@@ -62,6 +89,10 @@ class Options(PanelParent ):
 
         row = col.row()
         col.operator('opr.gcode_loader', text='Load GCode')
+        row = col.row()
+        col.operator('opr.asset_loader', text='Load Assets')
+
+
 
 class Filters(PanelParent):
     bl_parent_id = "VIEW3D_PT_panel_options"
@@ -85,11 +116,36 @@ class Animatable(PanelParent):
             row = col.row()
             row.prop(context.scene.Buddy_Props, propName)
 
+class NonAnimatable(PanelParent):
+    bl_parent_id = "VIEW3D_PT_panel_options"
+    bl_idname = 'VIEW3D_PT_panel_nonanimatable'
+    bl_label = "Non-Animatable"
+
+    def draw(self, context):
+        col = self.layout.column()
+        for propGroup in propsNonAnimatable:
+            
+            if (isinstance(propGroup, str)):
+                row = col.row()
+                row.prop(context.scene.Buddy_Props, propGroup)
+            elif(isinstance(propGroup, tuple)):
+                row = col.row()
+                row.label(text=propGroup[0]+":")
+                row = col.row()
+                for prop in propGroup[1:]:
+                    row.prop(context.scene.Buddy_Props, prop[0], text=prop[1])
+
+
 class Buddy_Props(bpy.types.PropertyGroup):
     ObjectName: bpy.props.StringProperty(name='Object Name', description='What to name the imported object collection', default='OBJECT')
     BevelName: bpy.props.StringProperty(name='Bevel Name', description='What to name the created bevel profiles', default='bevel')
     FilePath: bpy.props.StringProperty(name='File Path', description="Path of GCode file", subtype="FILE_PATH")
-        
+    
+    SeamAbberation_Amount: bpy.props.FloatProperty(name='Seam Abberation Distance', default=0, description='The maximum amount to vary the seams', min=0)
+    SeamAbberation_Probability: bpy.props.FloatProperty(name='Seam Abberation Probability', default=0, description='The probability with which a seam would be picked to be varied.\n0 being none and 1 being all', min=0, max=1)
+    WidthOffset: bpy.props.FloatProperty(name='Width Offset', default=0, description='All the lines widths would be offset by this amount', min=-1, max=1)
+    HeightOffset: bpy.props.FloatProperty(name='Height Offset', default=0, description='All the lines heights would be offset by this amount ', min=-1, max=1)
+
     Gap_fill: bpy.props.BoolProperty(name='Gap fill', default=True)
     External_perimeter: bpy.props.BoolProperty(name='External perimeter', default=True)
     Overhang_perimeter: bpy.props.BoolProperty(name='Overhang perimeter', default=True)
@@ -111,7 +167,7 @@ class Buddy_Props(bpy.types.PropertyGroup):
 
 
 CLASSES = [
-    Buddy_Props, Options, Filters, GCodeLoaderOperator, Animatable
+    Buddy_Props, Options, Filters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, NonAnimatable
 ]
 
 propsMain = [
@@ -120,6 +176,7 @@ propsMain = [
 
 propsFilter = ['Gap_fill', 'External_perimeter', 'Perimeter', 'Top_solid_infill', 'Bridge_infill', 'Internal_infill', 'Custom', 'Solid_infill', 'Skirt_Brim', 'End_Point', 'Overhang_perimeter', 'Support_material', 'Support_material_interface']
 propsAnimatable = ['SeamDistance', 'LayerIndexTop']
+propsNonAnimatable = ['WidthOffset', 'HeightOffset', ('Seam Abberations', ('SeamAbberation_Amount', 'Amount'), ('SeamAbberation_Probability', 'Probability'))] 
 
 
 def register():

@@ -1,13 +1,9 @@
-from http.client import LineTooLong
-from importlib import import_module
+from ast import Param
 import bpy
-import os, sys
-import bmesh
-from mathutils import Vector
+import sys
 import math
-from bpy import context 
 import re 
-import importlib
+
 
 moduleParentName = '.'.join(__name__.split('.')[:-1])
 createProfile = sys.modules[moduleParentName + '.BevelShapeCreator'].createProfile
@@ -17,6 +13,7 @@ NoSuchPropertyException = sys.modules[moduleParentName + '.Exceptions'].NoSuchPr
 createEndPoints = sys.modules[moduleParentName + '.EndPointCreator'].createEndPoints
 ImproperCruveException = sys.modules[moduleParentName + '.Exceptions'].ImproperCruveException
 
+ParamNames = sys.modules[moduleParentName + '.Constants'].ParamNames
 class Layer: #Class that stores information about the layer. Needs to change because there are different widths in the same layer as well
     def __init__(self, zPos, height, layerNumber, gcodes) -> None:
         self.zPos = zPos
@@ -50,7 +47,7 @@ def gcodeParser(gcodeFilePath, params):
 
     valueTacker = {'X':0, 'Y':0, 'Z':0, 'E':0, 'W':0.5, 'H':0.2, 'layerNumber':0, 'type':'Custom'} #E is extrusion; X, Y and Z are the coordinates; W is width of the  print line
 
-    precision = getFromParam('precision',params)
+    precision = getFromParam(ParamNames.precision,params)
     while True:
         line = file.readline()
         curLineNumber = curLineNumber + 1
@@ -173,9 +170,10 @@ def addVisibilityDriver(curveOB, drivenProperty="hide_viewport"):
 #Take the parsed GCode and finally make it into a curve that is beveled on blender
 def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix, collection, params):
     
-    widthOffset = getFromParam('widthOffset',params)
-    heightOffset = getFromParam('heightOffset',params)
-    precision = getFromParam('precision',params)
+    widthOffset = getFromParam(ParamNames.widthOffset,params)
+    heightOffset = getFromParam(ParamNames.heightOffset,params)
+    precision = getFromParam(ParamNames.precision,params)
+
     lengthOfCurve = 0
 
     if (len(coords) > 1):
@@ -215,15 +213,16 @@ def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix,
         if bevelName in bpy.data.objects.keys():
             bevelObject = bpy.data.objects.get(bevelName)
         else:
-            createProfile(width+widthOffset, height+heightOffset, bevelName)
+            createProfile(width+widthOffset, height+heightOffset, 1, bevelName)
             bevelObject = bpy.data.objects.get(bevelName)
         
         curveData.bevel_mode = "OBJECT" 
         curveData.bevel_object = bpy.data.objects.get(bevelName)
         curveData.use_fill_caps = True
 
+    
         ## Delte after testing
-        mat = bpy.data.materials.get("Material.001")
+        mat = bpy.data.materials.get("My Material")
         curveOB.data.materials.append(mat)
         ## Delte after testing        
 
@@ -241,7 +240,13 @@ def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix,
         return curveOB
 
 
-defaultParams = { 'widthOffset':0, 'heightOffset':0, 'precision': 2 }
+defaultParams = { 
+    ParamNames.widthOffset:0, 
+    ParamNames.heightOffset:0, 
+    ParamNames.precision: 2,
+    ParamNames.seamAbberations: {ParamNames.amount: 0, ParamNames.probability: 0} 
+}
+
 def getFromParam(key, params):
     if key in params.keys():
         return params[key]
@@ -251,8 +256,9 @@ def getFromParam(key, params):
     else:
         raise NoSuchPropertyException(key)
 
-def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}, filters = {}):
+def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}):
     
+    print(params)
     listOfParsedLayers = gcodeParser(gcodeFilePath, params)
 
 
@@ -261,7 +267,7 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
     parentCollection =  bpy.data.collections.new(objectName)
     bpy.context.scene.collection.children.link(parentCollection)
 
-    for currentLayer in listOfParsedLayers:
+    for currentLayer in listOfParsedLayers[0:10]:
         
         prevWidth = 0
         prevType = "Custom"
@@ -285,7 +291,7 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
                 addVisibilityDriver(curveOB, "hide_render")
             
 
-            if (curveType in ["External_perimeter", "Skirt_Brim"] and not curveOB == None ):
+            if (curveType in ["External_perimeter", "Skirt_Brim", "Perimeter", "Top_solid_infill", "Overhang_perimeter"] and not curveOB == None ):
                 endPoint, startPoint = createEndPoints(curveOB)
                 layerCollection.objects.link(endPoint)
                 layerCollection.objects.link(startPoint)
