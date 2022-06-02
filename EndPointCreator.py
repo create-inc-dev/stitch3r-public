@@ -2,8 +2,11 @@ import bpy
 import math
 import sys
 
+
+
 moduleParentName = '.'.join(__name__.split('.')[:-1])
 ImproperCruveException = sys.modules[moduleParentName + '.Exceptions'].ImproperCruveException
+ParamNames = sys.modules[moduleParentName + '.Constants'].ParamNames
 
 def createEndPoint(curveOB, bevelShape): ##End point rounding
 
@@ -66,16 +69,22 @@ def createStartPoint(curveOB, bevelShape): ##Start point rounding
 
     return startPointBevel
 
-def createEndPoints(curveOB, seamDistanceProp = "Buddy_Props.SeamDistance"):
+def createEndPoints(curveOB, params, coin, seamDistanceProp = "Buddy_Props.SeamDistance"):
     
+    headProb = params[ParamNames.seamAbberations][ParamNames.probability]
+    abbAmount = params[ParamNames.seamAbberations][ParamNames.amount]
+
     bevelShape = curveOB.data.bevel_object
     if (bevelShape == None):
         raise ImproperCruveException(curveOB)
 
     
-    
     endPointBevel = createEndPoint(curveOB, bevelShape)
     startPointBevel = createStartPoint(curveOB, bevelShape)
+    
+    mat = bpy.data.materials.get("My Material")
+    endPointBevel.data.materials.append(mat)
+    startPointBevel.data.materials.append(mat)
     
     try:
         curveOB.data["lengthOfCurve"]
@@ -104,7 +113,10 @@ def createEndPoints(curveOB, seamDistanceProp = "Buddy_Props.SeamDistance"):
     var1.targets[0].id = curveOB.data
     var1.targets[0].data_path = '["lengthOfCurve"]'
 
-    driver.expression = "(1 - ({1} - {0})/{1})".format(var0.name, var1.name)
+    if (coin.toss(headProb)):
+        driver.expression = "(1 - ({1} - ({0} + {2}))/{1}) ".format(var0.name, var1.name, coin.uniform(0,abbAmount))
+    else:
+        driver.expression = "(1 - ({1} - {0})/{1})".format(var0.name, var1.name)
 
 
     driver = curveOB.data.driver_add("bevel_factor_end").driver
@@ -119,8 +131,11 @@ def createEndPoints(curveOB, seamDistanceProp = "Buddy_Props.SeamDistance"):
     var1.targets[0].id_type = curveOB.type
     var1.targets[0].id = curveOB.data
     var1.targets[0].data_path = '["lengthOfCurve"]'
-
-    driver.expression = "({1} - {0})/{1}".format(var0.name, var1.name)
+    
+    if (coin.toss(headProb)):
+        driver.expression = "(({1} - ({0} + {2}))/{1}) ".format(var0.name, var1.name, coin.uniform(0,abbAmount))
+    else:
+        driver.expression = "({1} - {0})/{1}".format(var0.name, var1.name)
 
 
     ##Linking everything to the seam distance slider on the addon

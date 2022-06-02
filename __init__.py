@@ -27,7 +27,7 @@ for currentModuleFullName in modulesFullNames.values():
         globals()[currentModuleFullName] = importlib.import_module(currentModuleFullName)
         setattr(globals()[currentModuleFullName], 'modulesNames', modulesFullNames)
 
-
+ParamNames = sys.modules[modulesFullNames['Constants']].ParamNames
 class GCodeLoaderOperator(bpy.types.Operator):
     
     bl_idname = 'opr.gcode_loader'
@@ -47,6 +47,8 @@ class GCodeLoaderOperator(bpy.types.Operator):
                 for prop in propGroup[1:]:
                     params[propGroup[0]][prop[1]] = getattr(bpy.context.scene.Buddy_Props, prop[0])
                     
+        params[ParamNames.seed] = 237
+        params[ParamNames.precision] = 2
 
         filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets.blend")
         with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
@@ -99,8 +101,13 @@ class Filters(PanelParent):
     bl_idname = 'VIEW3D_PT_panel_fiters'
     bl_label = "Filters"
 
+
     def draw(self, context):
         col = self.layout.column()
+        row = col.row()
+        row.prop(context.scene.Buddy_Props,'ViewportOnly')
+        row = col.row()
+        row.label(text="Features:")
         for propName in propsFilter:
             row = col.row()
             row.prop(context.scene.Buddy_Props, propName)
@@ -142,9 +149,11 @@ class Buddy_Props(bpy.types.PropertyGroup):
     FilePath: bpy.props.StringProperty(name='File Path', description="Path of GCode file", subtype="FILE_PATH")
     
     SeamAbberation_Amount: bpy.props.FloatProperty(name='Seam Abberation Distance', default=0, description='The maximum amount to vary the seams', min=0)
-    SeamAbberation_Probability: bpy.props.FloatProperty(name='Seam Abberation Probability', default=0, description='The probability with which a seam would be picked to be varied.\n0 being none and 1 being all', min=0, max=1)
+    SeamAbberation_Probability: bpy.props.FloatProperty(name='Seam Abberation Probability', default=0, description='The probability with which a seam would be picked to be varied.\n0 being none and 1 being all', min=0, max=100)
     WidthOffset: bpy.props.FloatProperty(name='Width Offset', default=0, description='All the lines widths would be offset by this amount', min=-1, max=1)
     HeightOffset: bpy.props.FloatProperty(name='Height Offset', default=0, description='All the lines heights would be offset by this amount ', min=-1, max=1)
+    ExtruderError_Amount: bpy.props.FloatProperty(name='Extruder Error Distance', default=0, description='The maximum amount to vary the distance the extruder messes up', min=0)
+    ExtruderError_Probability: bpy.props.FloatProperty(name='Extruder Error Probability', default=0, description='The probability with which a point would be picked to be varied.\n0 being none and 1 being all', min=0)
 
     Gap_fill: bpy.props.BoolProperty(name='Gap fill', default=True)
     External_perimeter: bpy.props.BoolProperty(name='External perimeter', default=True)
@@ -158,6 +167,7 @@ class Buddy_Props(bpy.types.PropertyGroup):
     Skirt_Brim: bpy.props.BoolProperty(name='Skirt/Brim', default=True)
     Support_material: bpy.props.BoolProperty(name='Support material', default=True)
     Support_material_interface: bpy.props.BoolProperty(name='Support material interface', default=True)
+    ViewportOnly: bpy.props.BoolProperty(name='Veiwport Only', description="The filters below would only affect the viewport.\nThe features would still appear in the render", default=True)
 
     End_Point: bpy.props.BoolProperty(name='End Point', default=True)
 
@@ -176,7 +186,7 @@ propsMain = [
 
 propsFilter = ['Gap_fill', 'External_perimeter', 'Perimeter', 'Top_solid_infill', 'Bridge_infill', 'Internal_infill', 'Custom', 'Solid_infill', 'Skirt_Brim', 'End_Point', 'Overhang_perimeter', 'Support_material', 'Support_material_interface']
 propsAnimatable = ['SeamDistance', 'LayerIndexTop']
-propsNonAnimatable = ['WidthOffset', 'HeightOffset', ('Seam Abberations', ('SeamAbberation_Amount', 'Amount'), ('SeamAbberation_Probability', 'Probability'))] 
+propsNonAnimatable = ['WidthOffset', 'HeightOffset', ('Seam Abberations', ('SeamAbberation_Amount', 'Amount'), ('SeamAbberation_Probability', 'Probability')), ('Extruder Error',('ExtruderError_Amount', 'Amount'),('ExtruderError_Probability', 'Probability'))] 
 
 
 def register():

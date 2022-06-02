@@ -2,7 +2,9 @@ from ast import Param
 import bpy
 import sys
 import math
-import re 
+import re
+
+from numpy import var 
 
 
 moduleParentName = '.'.join(__name__.split('.')[:-1])
@@ -14,6 +16,7 @@ createEndPoints = sys.modules[moduleParentName + '.EndPointCreator'].createEndPo
 ImproperCruveException = sys.modules[moduleParentName + '.Exceptions'].ImproperCruveException
 
 ParamNames = sys.modules[moduleParentName + '.Constants'].ParamNames
+Coin = sys.modules[moduleParentName + '.Constants'].BiasedCoin
 class Layer: #Class that stores information about the layer. Needs to change because there are different widths in the same layer as well
     def __init__(self, zPos, height, layerNumber, gcodes) -> None:
         self.zPos = zPos
@@ -47,7 +50,7 @@ def gcodeParser(gcodeFilePath, params):
 
     valueTacker = {'X':0, 'Y':0, 'Z':0, 'E':0, 'W':0.5, 'H':0.2, 'layerNumber':0, 'type':'Custom'} #E is extrusion; X, Y and Z are the coordinates; W is width of the  print line
 
-    precision = getFromParam(ParamNames.precision,params)
+    precision = params[ParamNames.precision]
     while True:
         line = file.readline()
         curLineNumber = curLineNumber + 1
@@ -153,7 +156,19 @@ def addVisibilityDriver(curveOB, drivenProperty="hide_viewport"):
     var2.targets[0].id = curveOB.data
     var2.targets[0].data_path = '["layerNumber"]'
 
-    driver.expression = "not ({1} and {2} <= {0})".format(var0.name, var1.name, var2.name)
+    
+    condition1 = var1.name
+    condition2 = "({0} <= {1})".format(var2.name, var0.name)
+    condition3 = "True"
+    
+    if (drivenProperty == "hide_render"):
+        var4 = driver.variables.new()
+        var4.name = "var4"
+        var4.targets[0].id_type = 'SCENE'
+        var4.targets[0].id = bpy.context.scene
+        var4.targets[0].data_path = "Buddy_Props.ViewportOnly"
+        
+        condition1 = "({0} or {1})".format(var1.name, var4.name)
 
     ##The rounded starting and end points would have a parent parameter that points to the curve they are placed on.
     ##It's import to tie their visbility to their parent
@@ -163,7 +178,12 @@ def addVisibilityDriver(curveOB, drivenProperty="hide_viewport"):
         var3.targets[0].id = curveOB.data['parent']
         var3.targets[0].data_path = drivenProperty
 
-        driver.expression = "not ({1} and {2} <= {0}) or {3} ".format(var0.name, var1.name, var2.name, var3.name)
+        condition3 = "not ("+ var3.name +")"
+        
+    driver.expression = "not ({0} and {1} and {2})".format(condition1, condition2, condition3)
+
+    
+
 
 
 
@@ -174,9 +194,9 @@ def addVisibilityDriver(curveOB, drivenProperty="hide_viewport"):
 #Take the parsed GCode and finally make it into a curve that is beveled on blender
 def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix, collection, params):
     
-    widthOffset = getFromParam(ParamNames.widthOffset,params)
-    heightOffset = getFromParam(ParamNames.heightOffset,params)
-    precision = getFromParam(ParamNames.precision,params)
+    widthOffset = params[ParamNames.widthOffset]
+    heightOffset = params[ParamNames.heightOffset]
+    precision = params[ParamNames.precision]
 
     lengthOfCurve = 0
 
@@ -249,25 +269,11 @@ def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix,
         return curveOB
 
 
-defaultParams = { 
-    ParamNames.widthOffset:0, 
-    ParamNames.heightOffset:0, 
-    ParamNames.precision: 2,
-    ParamNames.seamAbberations: {ParamNames.amount: 0, ParamNames.probability: 0} 
-}
-
-def getFromParam(key, params):
-    if key in params.keys():
-        return params[key]
-    elif key in defaultParams:
-        return defaultParams[key]
-
-    else:
-        raise NoSuchPropertyException(key)
-
 def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}):
     
-    print(params)
+    #print(params)
+    coin = Coin(params[ParamNames.seed])
+
     listOfParsedLayers = gcodeParser(gcodeFilePath, params)
 
 
@@ -276,7 +282,7 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
     parentCollection =  bpy.data.collections.new(objectName)
     bpy.context.scene.collection.children.link(parentCollection)
 
-    for currentLayer in listOfParsedLayers[0:10]:
+    for currentLayer in listOfParsedLayers[0:15]:
         
         prevWidth = 0
         prevType = "Custom"
@@ -301,7 +307,7 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
             
 
             if (curveType in ["External_perimeter", "Skirt_Brim", "Perimeter", "Top_solid_infill", "Overhang_perimeter"] and not curveOB == None ):
-                endPoint, startPoint = createEndPoints(curveOB)
+                endPoint, startPoint = createEndPoints(curveOB, params, coin)
                 layerCollection.objects.link(endPoint)
                 layerCollection.objects.link(startPoint)
                 
