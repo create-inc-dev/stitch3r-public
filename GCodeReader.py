@@ -157,9 +157,9 @@ def addVisibilityDriver(curveOB, drivenProperty="hide_viewport"):
     var2.targets[0].data_path = '["layerNumber"]'
 
     
-    condition1 = var1.name
-    condition2 = "({0} <= {1})".format(var2.name, var0.name)
-    condition3 = "True"
+    condition1 = var1.name                                   #is the curve type checked in the visibility tab
+    condition2 = "({0} <= {1})".format(var2.name, var0.name) #is the layer suppored to be visible i.e. layer number <= layer top index
+    condition3 = "True"                                      #is the parent visible
     
     if (drivenProperty == "hide_render"):
         var4 = driver.variables.new()
