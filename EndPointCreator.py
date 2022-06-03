@@ -83,8 +83,11 @@ def createEndPoints(curveOB, params, coin, seamDistanceProp = "Buddy_Props.SeamD
     startPointBevel = createStartPoint(curveOB, bevelShape)
     
     mat = bpy.data.materials.get("My Material")
-    endPointBevel.data.materials.append(mat)
-    startPointBevel.data.materials.append(mat)
+    
+    if (len(endPointBevel.data.materials) == 0):
+        endPointBevel.data.materials.append(mat)
+    if (len(startPointBevel.data.materials) == 0):
+        startPointBevel.data.materials.append(mat)
     
     try:
         curveOB.data["lengthOfCurve"]

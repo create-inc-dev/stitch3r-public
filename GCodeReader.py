@@ -29,6 +29,8 @@ class Layer: #Class that stores information about the layer. Needs to change bec
 
 #Reads the GCode Files, extracts only the G1 and G0 moves. Sorry no support for circular moves so far.
 def gcodeParser(gcodeFilePath, params):
+
+    print(__file__)
     file = open(gcodeFilePath, 'r')
     
     listOfParsedLayers = []
@@ -252,7 +254,8 @@ def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix,
     
         #Material was already imported from assets.blend file when the "Load GCode" button was pressed
         mat = bpy.data.materials.get("My Material")
-        curveOB.data.materials.append(mat)
+        if (len(curveOB.data.materials) == 0):
+            curveOB.data.materials.append(mat)
           
 
         #Aplly modifier to smooth out overlap artefacts, only shows in renders
@@ -282,7 +285,7 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
     parentCollection =  bpy.data.collections.new(objectName)
     bpy.context.scene.collection.children.link(parentCollection)
 
-    for currentLayer in listOfParsedLayers[0:15]:
+    for currentLayer in listOfParsedLayers:
         
         prevWidth = 0
         prevType = "Custom"
@@ -339,8 +342,10 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
             
         placeCurveFunc(prevType)
 
+        print("Layer Done: " + str(currentLayer.layerNumber), end='\r', flush=True)
         i = i + 1
     
+    bpy.context.scene["Buddy_Object_Collection"] = parentCollection
             
 
 

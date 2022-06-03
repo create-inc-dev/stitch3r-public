@@ -73,16 +73,34 @@ class AssetLoaderOperator(bpy.types.Operator):
                 bpy.context.scene.collection.children.link(col)
         return {'FINISHED'}
 
+class ExternalPerimeterSelector(bpy.types.Operator):
+    
+    bl_idname = 'opr.external_perimeter_selector'
+    bl_label = 'Load Assets'
+    
+    def execute(self, context):
+        print("Helo")
+        return {'FINISHED'}
+
+class GeometryNodesApplicator(bpy.types.Operator):
+    
+    bl_idname = 'opr.geometry_nodes_applicator'
+    bl_label = 'Load Assets'
+    
+    def execute(self, context):
+        print("Helo")
+        return {'FINISHED'}
+
 class PanelParent(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "3D-Print Buddy"
-    bl_options = {"DEFAULT_CLOSED"}
+    
 
 class Options(PanelParent ):
     bl_idname = 'VIEW3D_PT_panel_options'
     bl_label = 'Options'
-
+    
     def draw(self, context):
         col = self.layout.column()
         for propName in propsMain:
@@ -96,11 +114,13 @@ class Options(PanelParent ):
 
 
 
+
+
 class Filters(PanelParent):
     bl_parent_id = "VIEW3D_PT_panel_options"
     bl_idname = 'VIEW3D_PT_panel_fiters'
     bl_label = "Filters"
-
+    bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
         col = self.layout.column()
@@ -128,6 +148,7 @@ class NonAnimatable(PanelParent):
     bl_idname = 'VIEW3D_PT_panel_nonanimatable'
     bl_label = "Non-Animatable"
 
+    #('Extruder Error',('ExtruderError_Density', 'Density'),('ExtruderError_Probability', 'Probability'))
     def draw(self, context):
         col = self.layout.column()
         for propGroup in propsNonAnimatable:
@@ -142,6 +163,18 @@ class NonAnimatable(PanelParent):
                 for prop in propGroup[1:]:
                     row.prop(context.scene.Buddy_Props, prop[0], text=prop[1])
 
+        row = col.row()
+        row.label(text="Extruder Error")
+        row = col.row()
+        row.prop(context.scene.Buddy_Props, 'ExtruderError_Probability', text='Probability')
+        row.operator('opr.external_perimeter_selector', text='Make Selection')
+        
+        row = col.row()
+        row.prop(context.scene.Buddy_Props, 'ExtruderError_Density', text='Density')
+        row.operator('opr.geometry_nodes_applicator', text='Apply Errors')
+        row.enabled = len(context.selected_objects)
+
+
 
 class Buddy_Props(bpy.types.PropertyGroup):
     ObjectName: bpy.props.StringProperty(name='Object Name', description='What to name the imported object collection', default='OBJECT')
@@ -152,7 +185,7 @@ class Buddy_Props(bpy.types.PropertyGroup):
     SeamAbberation_Probability: bpy.props.FloatProperty(name='Seam Abberation Probability', default=0, description='The probability with which a seam would be picked to be varied.\n0 being none and 1 being all', min=0, max=100)
     WidthOffset: bpy.props.FloatProperty(name='Width Offset', default=0, description='All the lines widths would be offset by this amount', min=-1, max=1)
     HeightOffset: bpy.props.FloatProperty(name='Height Offset', default=0, description='All the lines heights would be offset by this amount ', min=-1, max=1)
-    ExtruderError_Amount: bpy.props.FloatProperty(name='Extruder Error Distance', default=0, description='The maximum amount to vary the distance the extruder messes up', min=0)
+    ExtruderError_Density: bpy.props.FloatProperty(name='Extruder Error Density', default=0.1, description='The density of extruder mistakes', min=0.00, max=1.00, step=0.05)
     ExtruderError_Probability: bpy.props.FloatProperty(name='Extruder Error Probability', default=0, description='The probability with which a point would be picked to be varied.\n0 being none and 1 being all', min=0)
 
     Gap_fill: bpy.props.BoolProperty(name='Gap fill', default=True)
@@ -175,9 +208,10 @@ class Buddy_Props(bpy.types.PropertyGroup):
     SeamDistance: bpy.props.FloatProperty(name='Seam Distance', default=0.2, description='How far apart should the seams be to get a desired look', min=0)
     LayerIndexTop: bpy.props.IntProperty(name='Layer Index', default=5000, description='The topmost layer to show, every layer after this would be hidden', min=0)
 
+    Status = bpy.props.StringProperty(name='Status', description="Processing Status", default="Not Processing")
 
 CLASSES = [
-    Buddy_Props, Options, Filters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, NonAnimatable
+    Buddy_Props, Options, Filters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, NonAnimatable, ExternalPerimeterSelector, GeometryNodesApplicator
 ]
 
 propsMain = [
@@ -186,7 +220,7 @@ propsMain = [
 
 propsFilter = ['Gap_fill', 'External_perimeter', 'Perimeter', 'Top_solid_infill', 'Bridge_infill', 'Internal_infill', 'Custom', 'Solid_infill', 'Skirt_Brim', 'End_Point', 'Overhang_perimeter', 'Support_material', 'Support_material_interface']
 propsAnimatable = ['SeamDistance', 'LayerIndexTop']
-propsNonAnimatable = ['WidthOffset', 'HeightOffset', ('Seam Abberations', ('SeamAbberation_Amount', 'Amount'), ('SeamAbberation_Probability', 'Probability')), ('Extruder Error',('ExtruderError_Amount', 'Amount'),('ExtruderError_Probability', 'Probability'))] 
+propsNonAnimatable = ['WidthOffset', 'HeightOffset', ('Seam Abberations', ('SeamAbberation_Amount', 'Amount'), ('SeamAbberation_Probability', 'Probability')), ] 
 
 
 def register():
