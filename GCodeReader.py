@@ -17,6 +17,8 @@ ImproperCruveException = sys.modules[moduleParentName + '.Exceptions'].ImproperC
 
 ParamNames = sys.modules[moduleParentName + '.Constants'].ParamNames
 Coin = sys.modules[moduleParentName + '.Constants'].BiasedCoin
+Keywords = sys.modules[moduleParentName + '.Constants'].Keywords
+
 class Layer: #Class that stores information about the layer. Needs to change because there are different widths in the same layer as well
     def __init__(self, zPos, height, layerNumber, gcodes) -> None:
         self.zPos = zPos
@@ -253,7 +255,7 @@ def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix,
 
     
         #Material was already imported from assets.blend file when the "Load GCode" button was pressed
-        mat = bpy.data.materials.get("My Material")
+        mat = bpy.data.materials.get(Keywords.materialName)
         if (len(curveOB.data.materials) == 0):
             curveOB.data.materials.append(mat)
           
@@ -285,7 +287,7 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
     parentCollection =  bpy.data.collections.new(objectName)
     bpy.context.scene.collection.children.link(parentCollection)
 
-    for currentLayer in listOfParsedLayers:
+    for currentLayer in listOfParsedLayers[0:20]:
         
         prevWidth = 0
         prevType = "Custom"

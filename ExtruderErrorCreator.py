@@ -16,3 +16,10 @@ def makeSelection(collection, probability, seed):
             if toss:
                 obj.select_set(True)
 
+def applyGeoNodes():
+    for obj in bpy.context.selected_objects:
+        ng = bpy.data.node_groups['Buddy Geometry Nodes']
+        modifier = obj.modifiers.new("MyName", "NODES")
+        bpy.data.node_groups.remove(modifier.node_group)
+        modifier.node_group = ng
+    

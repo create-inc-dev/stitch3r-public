@@ -2,11 +2,10 @@ import bpy
 import math
 import sys
 
-
-
 moduleParentName = '.'.join(__name__.split('.')[:-1])
 ImproperCruveException = sys.modules[moduleParentName + '.Exceptions'].ImproperCruveException
 ParamNames = sys.modules[moduleParentName + '.Constants'].ParamNames
+Keywords = sys.modules[moduleParentName + '.Constants'].Keywords
 
 def createEndPoint(curveOB, bevelShape): ##End point rounding
 
@@ -82,7 +81,7 @@ def createEndPoints(curveOB, params, coin, seamDistanceProp = "Buddy_Props.SeamD
     endPointBevel = createEndPoint(curveOB, bevelShape)
     startPointBevel = createStartPoint(curveOB, bevelShape)
     
-    mat = bpy.data.materials.get("My Material")
+    mat = bpy.data.materials.get(Keywords.materialName)
     
     if (len(endPointBevel.data.materials) == 0):
         endPointBevel.data.materials.append(mat)

@@ -29,6 +29,7 @@ for currentModuleFullName in modulesFullNames.values():
         setattr(globals()[currentModuleFullName], 'modulesNames', modulesFullNames)
 
 ParamNames = sys.modules[modulesFullNames['Constants']].ParamNames
+Keywords = sys.modules[modulesFullNames['Constants']].Keywords
 class GCodeLoaderOperator(bpy.types.Operator):
     
     bl_idname = 'opr.gcode_loader'
@@ -53,8 +54,8 @@ class GCodeLoaderOperator(bpy.types.Operator):
 
         filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets.blend")
         with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
-            data_to.materials = ["My Material"]
-
+            data_to.materials = [Keywords.materialName]
+            data_to.node_groups = [Keywords.geoNodesName]
         
         sys.modules[modulesFullNames['GCodeReader']].builder(fileName, params=params)
         return {'FINISHED'}
@@ -67,7 +68,8 @@ class AssetLoaderOperator(bpy.types.Operator):
     def execute(self, context):
         filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets.blend")
         with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
-            data_to.collections = ["Import Things"]
+            data_to.collections = [Keywords.importCollectionName]
+            
         
         for col in data_to.collections:
             if col is not None:
@@ -92,7 +94,7 @@ class GeometryNodesApplicator(bpy.types.Operator):
     bl_label = 'Load Assets'
     
     def execute(self, context):
-        print("Helo")
+        sys.modules[modulesFullNames['ExtruderErrorCreator']].applyGeoNodes()
         return {'FINISHED'}
 
 class PanelParent(bpy.types.Panel):

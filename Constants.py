@@ -13,6 +13,9 @@ class ParamNames:
 
 class Keywords:
     layerNumber = "layerNumber"
+    materialName = "Buddy Material"
+    geoNodesName = "Buddy Geometry Nodes"
+    importCollectionName = "Import Things"
 
 class Types:
     externalPerimeter = "External_perimeter"
