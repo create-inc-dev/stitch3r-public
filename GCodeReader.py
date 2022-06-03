@@ -285,7 +285,7 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
     parentCollection =  bpy.data.collections.new(objectName)
     bpy.context.scene.collection.children.link(parentCollection)
 
-    for currentLayer in listOfParsedLayers:
+    for currentLayer in listOfParsedLayers[0:25]:
         
         prevWidth = 0
         prevType = "Custom"
@@ -346,60 +346,3 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
         i = i + 1
     
     bpy.context.scene["Buddy_Object_Collection"] = parentCollection
-            
-
-
-"""def slicer(ob, start, end, cuts):
-    #slices = [] could instead return unlinked objects
-    axis = end - start
-    dv = axis / cuts
-    #axis.normalize()
-    mw = ob.matrix_world
-    bm0 = bm = bmesh.new()
-    
-    # transform to world coords
-    # bm.transform(mw)
-    # mesh = bpy.data.meshes.new("Slice")
-
-    for i in range(cuts + 1):
-        bm.from_mesh(ob.data)
-        #bm.from_object(ob, dg) # use modified mesh
-        #bm = bm0.copy()
-        #bm.transform(mw) # make global
-        plane_co = start + i * dv
-       
-        cut = bmesh.ops.bisect_plane(
-                bm,
-                plane_co=plane_co,
-                plane_no=axis,
-                geom=bm.verts[:] + bm.faces[:] + bm.edges[:],
-                clear_inner=True,
-                clear_outer=True,
-                )["geom_cut"]
-        if not cut:
-            bm.clear()
-            continue
-        me = bpy.data.meshes.new(f"Slice{i}")
-        # me = mesh.copy()
-        bm.to_mesh(me)
-        '''
-        # only slightly slower
-        me.from_pydata(
-            [v.co for v in cut if hasattr(v, "co")],
-            [(e.verts[0].index, e.verts[1].index) for e in cut if hasattr(e, "verts")],
-            []
-            )
-        '''
-
-        slice = bpy.data.objects.new(f"Slice{i}", me)
-        slice.matrix_world = mw
-        context.collection.objects.link(slice)
-        bm.clear()        
-        #bm.free() # if using bm = bm0.copy()
-    #bm.free()
-    
-slicer(
-        context.object, 
-        Vector((0, 0, -1)), 
-        Vector((0, 0, 1)), 
-        100)"""

@@ -14,6 +14,9 @@ class ParamNames:
 class Keywords:
     layerNumber = "layerNumber"
 
+class Types:
+    externalPerimeter = "External_perimeter"
+
 class BiasedCoin:
     def __init__(self, seed):
         self.randGenerator = Random()

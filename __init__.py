@@ -1,4 +1,5 @@
 from pickle import TRUE
+from random import seed
 import bpy
 import sys
 import os
@@ -13,7 +14,7 @@ bl_info = {
     'description': 'An example addon',
 }
 
-modulesNames = [ 'Constants', 'Exceptions', 'EndPointCreator', 'BevelShapeCreator', 'GCodeReader' ]
+modulesNames = [ 'Constants', 'ExtruderErrorCreator', 'Exceptions', 'EndPointCreator', 'BevelShapeCreator', 'GCodeReader' ]
 
 modulesFullNames = {}
 for currentModuleName in modulesNames:
@@ -79,7 +80,10 @@ class ExternalPerimeterSelector(bpy.types.Operator):
     bl_label = 'Load Assets'
     
     def execute(self, context):
-        print("Helo")
+        seed = 237
+        probability = getattr(bpy.context.scene.Buddy_Props, 'ExtruderError_Probability')
+
+        sys.modules[modulesFullNames['ExtruderErrorCreator']].makeSelection(bpy.context.scene["Buddy_Object_Collection"], probability, seed)
         return {'FINISHED'}
 
 class GeometryNodesApplicator(bpy.types.Operator):
@@ -172,7 +176,7 @@ class NonAnimatable(PanelParent):
         row = col.row()
         row.prop(context.scene.Buddy_Props, 'ExtruderError_Density', text='Density')
         row.operator('opr.geometry_nodes_applicator', text='Apply Errors')
-        row.enabled = len(context.selected_objects)
+        row.enabled = bool(len(context.selected_objects))
 
 
 
@@ -200,9 +204,11 @@ class Buddy_Props(bpy.types.PropertyGroup):
     Skirt_Brim: bpy.props.BoolProperty(name='Skirt/Brim', default=True)
     Support_material: bpy.props.BoolProperty(name='Support material', default=True)
     Support_material_interface: bpy.props.BoolProperty(name='Support material interface', default=True)
+    
     ViewportOnly: bpy.props.BoolProperty(name='Veiwport Only', description="The filters below would only affect the viewport.\nThe features would still appear in the render", default=True)
 
     End_Point: bpy.props.BoolProperty(name='End Point', default=True)
+    Extruder_Error: bpy.props.BoolProperty(name='Extruder Error', default=True)
 
 
     SeamDistance: bpy.props.FloatProperty(name='Seam Distance', default=0.2, description='How far apart should the seams be to get a desired look', min=0)
@@ -218,7 +224,7 @@ propsMain = [
     'ObjectName', 'BevelName', 'FilePath'
     ]
 
-propsFilter = ['Gap_fill', 'External_perimeter', 'Perimeter', 'Top_solid_infill', 'Bridge_infill', 'Internal_infill', 'Custom', 'Solid_infill', 'Skirt_Brim', 'End_Point', 'Overhang_perimeter', 'Support_material', 'Support_material_interface']
+propsFilter = ['Gap_fill', 'External_perimeter', 'Perimeter', 'Top_solid_infill', 'Bridge_infill', 'Internal_infill', 'Custom', 'Solid_infill', 'Skirt_Brim', 'End_Point', 'Overhang_perimeter', 'Support_material', 'Support_material_interface', 'Extruder_Error']
 propsAnimatable = ['SeamDistance', 'LayerIndexTop']
 propsNonAnimatable = ['WidthOffset', 'HeightOffset', ('Seam Abberations', ('SeamAbberation_Amount', 'Amount'), ('SeamAbberation_Probability', 'Probability')), ] 
 
