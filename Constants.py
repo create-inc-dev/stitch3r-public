@@ -1,4 +1,4 @@
-from random import Random
+from random import Random, randint
 
 class ParamNames:
     widthOffset = "WidthOffset"
@@ -18,7 +18,7 @@ class Types:
     externalPerimeter = "External_perimeter"
 
 class BiasedCoin:
-    def __init__(self, seed):
+    def __init__(self, seed=randint(0,500)):
         self.randGenerator = Random()
         self.randGenerator.seed = seed
 

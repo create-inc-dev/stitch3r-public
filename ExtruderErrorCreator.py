@@ -5,7 +5,7 @@ Coin = sys.modules[moduleParentName + '.Constants'].BiasedCoin
 Types = sys.modules[moduleParentName + '.Constants'].Types
 
 def makeSelection(collection, probability, seed):
-    coin = Coin(seed)
+    coin = Coin()
 
     for obj in bpy.context.selected_objects:
         obj.select_set(False)
