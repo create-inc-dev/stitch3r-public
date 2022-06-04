@@ -16,9 +16,12 @@ class Keywords:
     materialName = "Buddy Material"
     geoNodesName = "Buddy Geometry Nodes"
     importCollectionName = "Import Things"
+    geoNodesModifierName = "GeoNodes"
+    viewportOnly = "ViewportOnly"
 
 class Types:
     externalPerimeter = "External_perimeter"
+    extruderError = "Extruder_Error"
 
 class BiasedCoin:
     def __init__(self, seed=randint(0,500)):
