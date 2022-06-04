@@ -137,7 +137,7 @@ def gcodeParser(gcodeFilePath, params):
 
 def addVisibilityDriver(curveOB, drivenProperty="hide_viewport"):
     try:
-        curveType = curveOB.data["type"]
+        curveType = curveOB["type"]
     except KeyError:
         raise ImproperCruveException(curveOB)
 
@@ -156,8 +156,7 @@ def addVisibilityDriver(curveOB, drivenProperty="hide_viewport"):
 
     var2 = driver.variables.new()
     var2.name = "var2"
-    var2.targets[0].id_type = curveOB.type
-    var2.targets[0].id = curveOB.data
+    var2.targets[0].id = curveOB
     var2.targets[0].data_path = '["layerNumber"]'
 
     
@@ -176,10 +175,10 @@ def addVisibilityDriver(curveOB, drivenProperty="hide_viewport"):
 
     ##The rounded starting and end points would have a parent parameter that points to the curve they are placed on.
     ##It's import to tie their visbility to their parent
-    if ('parent' in curveOB.data.keys()):
+    if ('parent' in curveOB.keys()):
         var3 = driver.variables.new()
         var3.name = "var3"
-        var3.targets[0].id = curveOB.data['parent']
+        var3.targets[0].id = curveOB['parent']
         var3.targets[0].data_path = drivenProperty
 
         condition3 = "not ("+ var3.name +")"
@@ -234,9 +233,15 @@ def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix,
         
         #Properties for debugging and other uses
         curveOB.data["zPos"] = zPos
+        curveOB["zPos"] = zPos
+
         curveOB.data["type"] = curveType
+        curveOB["type"] = curveType
+
         curveOB.data["lengthOfCurve"] = lengthOfCurve
+
         curveOB.data["layerNumber"] = layerNumber
+        curveOB["layerNumber"] = layerNumber
         curveOB.hide_viewport = True
 
 
