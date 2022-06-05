@@ -292,7 +292,7 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
     parentCollection =  bpy.data.collections.new(objectName)
     bpy.context.scene.collection.children.link(parentCollection)
 
-    for currentLayer in listOfParsedLayers[0:20]:
+    for currentLayer in listOfParsedLayers:
         
         prevWidth = 0
         prevType = "Custom"

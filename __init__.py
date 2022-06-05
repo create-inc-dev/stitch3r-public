@@ -207,7 +207,7 @@ class Buddy_Props(bpy.types.PropertyGroup):
     Support_material: bpy.props.BoolProperty(name='Support material', default=True)
     Support_material_interface: bpy.props.BoolProperty(name='Support material interface', default=True)
     
-    ViewportOnly: bpy.props.BoolProperty(name='Veiwport Only', description="The filters below would only affect the viewport.\nThe features would still appear in the render", default=True)
+    ViewportOnly: bpy.props.BoolProperty(name='Viewport Only', description="The filters below would only affect the viewport.\nThe features would still appear in the render", default=True)
 
     End_Point: bpy.props.BoolProperty(name='End Point', default=True)
     Extruder_Error: bpy.props.BoolProperty(name='Extruder Error', default=True)
