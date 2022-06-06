@@ -4,7 +4,7 @@ import sys
 import math
 import re
 
-from numpy import var 
+from numpy import number, var 
 
 
 moduleParentName = '.'.join(__name__.split('.')[:-1])
@@ -34,7 +34,9 @@ def gcodeParser(gcodeFilePath, params):
 
     print(__file__)
     file = open(gcodeFilePath, 'r')
-    
+    lines = file.readlines()
+    numberOfLines = len(lines)
+    linesIterator = iter(lines)
     listOfParsedLayers = []
     
     gcodePattern = re.compile("(\s*G[01](?:\s+[XYZEF](?:[-+]?(?:\d*\.\d+|\d+)))+\s*)(?:;(.*))?$") #Pattern that matches G0 or G1 commands. To be noted, I don't see any G0 commansd in Prusa Slicer.
@@ -56,7 +58,12 @@ def gcodeParser(gcodeFilePath, params):
 
     precision = params[ParamNames.precision]
     while True:
-        line = file.readline()
+        try:
+            line = next(linesIterator)
+        except StopIteration:
+            line = "!__end__!"
+        
+        
         curLineNumber = curLineNumber + 1
         
         if bool(gcodePattern.match(line)):
@@ -89,14 +96,14 @@ def gcodeParser(gcodeFilePath, params):
             height = 0
 
             try:
-                line = file.readline()
+                line = next(linesIterator)
                 curLineNumber = curLineNumber + 1
                 zPos = float(zPosPattern.search(line)[1])
             except (IndexError, TypeError):
                 raise NoZPosMatch(line, curLineNumber)
 
             try:
-                line = file.readline()
+                line = next(linesIterator)
                 curLineNumber = curLineNumber + 1
                 height = float(heightPattern.search(line)[1])
                 valueTacker['H'] = height
@@ -125,14 +132,17 @@ def gcodeParser(gcodeFilePath, params):
             curveType = typePattern.search(line)[1].strip()
             valueTacker['type'] = re.sub(" |/","_", curveType)
             
-        elif not line:
+        elif line == "!__end__!":
             prevLayer = Layer(prevLayerZPos, prevLayerHeight, curLayerNumber, prevLayerGcodes)
             listOfParsedLayers.append(prevLayer)
             break
 
         else:
             pass
+
+        print("Processing GCode File: {}/{}".format(curLineNumber, numberOfLines), end='\r', flush=True )
     
+    print("")
     return listOfParsedLayers
 
 def addVisibilityDriver(curveOB, drivenProperty="hide_viewport"):
@@ -187,8 +197,10 @@ def addVisibilityDriver(curveOB, drivenProperty="hide_viewport"):
 
     
 
-
-
+#Apply modifier to smooth out overlap artefacts, only shows in renders
+def addEnhancingModifiers(curveOB):
+    curveOB.modifiers.new('split', 'EDGE_SPLIT')
+    curveOB.modifiers.get('split').show_viewport = False
 
 
 
@@ -265,9 +277,8 @@ def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix,
             curveOB.data.materials.append(mat)
           
 
-        #Aplly modifier to smooth out overlap artefacts, only shows in renders
-        curveOB.modifiers.new('split', 'EDGE_SPLIT')
-        curveOB.modifiers.get('split').show_viewport = False
+        
+        addEnhancingModifiers(curveOB)
 
         #Change bevel mapping - this would be used for rounding the end points of the curve
         curveOB.data.bevel_factor_mapping_start = 'SPLINE'
@@ -292,6 +303,7 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
     parentCollection =  bpy.data.collections.new(objectName)
     bpy.context.scene.collection.children.link(parentCollection)
 
+    numberOfLayers = len(listOfParsedLayers)
     for currentLayer in listOfParsedLayers:
         
         prevWidth = 0
@@ -325,6 +337,9 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
                 addVisibilityDriver(startPoint, "hide_viewport")
                 addVisibilityDriver(endPoint, "hide_render")
                 addVisibilityDriver(startPoint, "hide_render")
+                curveOB[Keywords.startPoint] = startPoint
+                curveOB[Keywords.endPoint] = startPoint
+
 
         for elem in currentLayer.gcodes:
             #print(elem)
@@ -349,7 +364,8 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
             
         placeCurveFunc(prevType)
 
-        print("Layer Done: " + str(currentLayer.layerNumber), end='\r', flush=True)
+        print("Layer Done: {}/{}".format(currentLayer.layerNumber, numberOfLayers), end='\r', flush=True)
         i = i + 1
+    print("")
     
     bpy.context.scene["Buddy_Object_Collection"] = parentCollection

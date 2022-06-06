@@ -18,10 +18,17 @@ class Keywords:
     importCollectionName = "Import Things"
     geoNodesModifierName = "GeoNodes"
     viewportOnly = "ViewportOnly"
+    parent = "parent"
+    featureType = "type"
+    zPos = "zPos"
+    startPoint = "startPoint"
+    endPoint = "endPoint"
+
 
 class Types:
     externalPerimeter = "External_perimeter"
     extruderError = "Extruder_Error"
+    endPoint = "End_Point"
 
 class BiasedCoin:
     def __init__(self, seed=randint(0,500)):
@@ -34,3 +41,5 @@ class BiasedCoin:
 
     def uniform(self,a,b):
         return self.randGenerator.uniform(a,b)
+
+objectProperties = [Keywords.layerNumber, Keywords.parent, Keywords.featureType, Keywords.zPos, Keywords.startPoint, Keywords.endPoint]

@@ -14,7 +14,7 @@ bl_info = {
     'description': 'An example addon',
 }
 
-modulesNames = [ 'Constants', 'ExtruderErrorCreator', 'Exceptions', 'EndPointCreator', 'BevelShapeCreator', 'GCodeReader' ]
+modulesNames = [ 'Constants','ExtruderErrorCreator', 'Exceptions', 'EndPointCreator', 'BevelShapeCreator', 'GCodeReader', 'Meshifier' ]
 
 modulesFullNames = {}
 for currentModuleName in modulesNames:
@@ -76,6 +76,14 @@ class AssetLoaderOperator(bpy.types.Operator):
                 bpy.context.scene.collection.children.link(col)
         return {'FINISHED'}
 
+class MeshifyOperator(bpy.types.Operator):
+    bl_idname = 'opr.meshifier'
+    bl_label = 'Meshify!!!'
+
+    def execute(self, context):
+        sys.modules[modulesFullNames['Meshifier']].meshify(bpy.context.scene["Buddy_Object_Collection"])
+        return {'FINISHED'}
+
 class ExternalPerimeterSelector(bpy.types.Operator):
     
     bl_idname = 'opr.external_perimeter_selector'
@@ -117,6 +125,8 @@ class Options(PanelParent ):
         col.operator('opr.gcode_loader', text='Load GCode')
         row = col.row()
         col.operator('opr.asset_loader', text='Load Assets')
+        row = col.row()
+        col.operator('opr.meshifier')
 
 
 
@@ -219,7 +229,7 @@ class Buddy_Props(bpy.types.PropertyGroup):
     Status = bpy.props.StringProperty(name='Status', description="Processing Status", default="Not Processing")
 
 CLASSES = [
-    Buddy_Props, Options, Filters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, NonAnimatable, ExternalPerimeterSelector, GeometryNodesApplicator
+    Buddy_Props, Options, Filters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, NonAnimatable, ExternalPerimeterSelector, GeometryNodesApplicator, MeshifyOperator
 ]
 
 propsMain = [
