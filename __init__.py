@@ -5,7 +5,7 @@ import sys
 import os
 
 bl_info = {
-    'name': 'My Example Addon',
+    'name': 'Stitch3r - GCode Renderer',
     'blender': (2, 93, 0),
     'category': 'Object',
     'location': "View3D > Tools > MyPlugin",
