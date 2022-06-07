@@ -32,7 +32,7 @@ def applyGeoNodes():
         var.name = "var"
         var.targets[0].id_type = 'SCENE'
         var.targets[0].id = bpy.context.scene
-        var.targets[0].data_path =  "Buddy_Props.ExtruderError_Density" 
+        var.targets[0].data_path =  "Stitcher_Props.ExtruderError_Density" 
         driver.expression = var.name
 
         bevelShape = obj.data.bevel_object
@@ -51,7 +51,7 @@ def applyGeoNodes():
         var1.name = "var1"
         var1.targets[0].id_type = 'SCENE'
         var1.targets[0].id = bpy.context.scene
-        var1.targets[0].data_path = "Buddy_Props." + Types.extruderError
+        var1.targets[0].data_path = "Stitcher_Props." + Types.extruderError
         driver.expression = var1.name
 
         driver = obj.driver_add('modifiers["{}"].show_render'.format(Keywords.geoNodesModifierName)).driver
@@ -60,12 +60,12 @@ def applyGeoNodes():
         var1.name = "var1"
         var1.targets[0].id_type = 'SCENE'
         var1.targets[0].id = bpy.context.scene
-        var1.targets[0].data_path = "Buddy_Props." + Types.extruderError
+        var1.targets[0].data_path = "Stitcher_Props." + Types.extruderError
 
         var2 = driver.variables.new()
         var2.name = "var2"
         var2.targets[0].id_type = 'SCENE'
         var2.targets[0].id = bpy.context.scene
-        var2.targets[0].data_path = "Buddy_Props." + Keywords.viewportOnly
+        var2.targets[0].data_path = "Stitcher_Props." + Keywords.viewportOnly
         driver.expression = "{0} or {1}".format(var1.name, var2.name)
     

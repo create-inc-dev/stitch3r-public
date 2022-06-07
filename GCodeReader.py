@@ -156,13 +156,13 @@ def addVisibilityDriver(curveOB, drivenProperty="hide_viewport"):
     var0.name = "var0"
     var0.targets[0].id_type = 'SCENE'
     var0.targets[0].id = bpy.context.scene
-    var0.targets[0].data_path = "Buddy_Props.LayerIndexTop"
+    var0.targets[0].data_path = "Stitcher_Props.LayerIndexTop"
 
     var1 = driver.variables.new()
     var1.name = "var1"
     var1.targets[0].id_type = 'SCENE'
     var1.targets[0].id = bpy.context.scene
-    var1.targets[0].data_path = "Buddy_Props." + curveType
+    var1.targets[0].data_path = "Stitcher_Props." + curveType
 
     var2 = driver.variables.new()
     var2.name = "var2"
@@ -179,7 +179,7 @@ def addVisibilityDriver(curveOB, drivenProperty="hide_viewport"):
         var4.name = "var4"
         var4.targets[0].id_type = 'SCENE'
         var4.targets[0].id = bpy.context.scene
-        var4.targets[0].data_path = "Buddy_Props.ViewportOnly"
+        var4.targets[0].data_path = "Stitcher_Props.ViewportOnly"
         
         condition1 = "({0} or {1})".format(var1.name, var4.name)
 

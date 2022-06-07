@@ -6,7 +6,7 @@ import os
 
 bl_info = {
     'name': 'Stitch3r - GCode Renderer',
-    'blender': (2, 93, 0),
+    'blender': (3, 0, 1),
     'category': 'Object',
     'location': "View3D > Tools > MyPlugin",
     'version': (1, 0, 0),
@@ -37,17 +37,17 @@ class GCodeLoaderOperator(bpy.types.Operator):
     
     def execute(self, context):
 
-        fileName = getattr(bpy.context.scene.Buddy_Props, 'FilePath')
+        fileName = getattr(bpy.context.scene.Stitcher_Props, 'FilePath')
         
         params = {}
         for propGroup in propsNonAnimatable:
             
             if (isinstance(propGroup, str)):
-                params[propGroup] = getattr(bpy.context.scene.Buddy_Props, propGroup)
+                params[propGroup] = getattr(bpy.context.scene.Stitcher_Props, propGroup)
             elif(isinstance(propGroup, tuple)):
                 params[propGroup[0]] = {}
                 for prop in propGroup[1:]:
-                    params[propGroup[0]][prop[1]] = getattr(bpy.context.scene.Buddy_Props, prop[0])
+                    params[propGroup[0]][prop[1]] = getattr(bpy.context.scene.Stitcher_Props, prop[0])
                     
         params[ParamNames.seed] = 237
         params[ParamNames.precision] = 2
@@ -91,7 +91,7 @@ class ExternalPerimeterSelector(bpy.types.Operator):
     
     def execute(self, context):
         seed = 237
-        probability = getattr(bpy.context.scene.Buddy_Props, 'ExtruderError_Probability')
+        probability = getattr(bpy.context.scene.Stitcher_Props, 'ExtruderError_Probability')
 
         sys.modules[modulesFullNames['ExtruderErrorCreator']].makeSelection(bpy.context.scene["Buddy_Object_Collection"], probability, seed)
         return {'FINISHED'}
@@ -119,7 +119,7 @@ class Options(PanelParent ):
         col = self.layout.column()
         for propName in propsMain:
             row = col.row()
-            row.prop(context.scene.Buddy_Props, propName)
+            row.prop(context.scene.Stitcher_Props, propName)
 
         row = col.row()
         col.operator('opr.gcode_loader', text='Load GCode')
@@ -141,12 +141,12 @@ class Filters(PanelParent):
     def draw(self, context):
         col = self.layout.column()
         row = col.row()
-        row.prop(context.scene.Buddy_Props,'ViewportOnly')
+        row.prop(context.scene.Stitcher_Props,'ViewportOnly')
         row = col.row()
         row.label(text="Features:")
         for propName in propsFilter:
             row = col.row()
-            row.prop(context.scene.Buddy_Props, propName)
+            row.prop(context.scene.Stitcher_Props, propName)
         
 class Animatable(PanelParent):
     bl_parent_id = "VIEW3D_PT_panel_options"
@@ -157,7 +157,7 @@ class Animatable(PanelParent):
         col = self.layout.column()
         for propName in propsAnimatable:
             row = col.row()
-            row.prop(context.scene.Buddy_Props, propName)
+            row.prop(context.scene.Stitcher_Props, propName)
 
 class NonAnimatable(PanelParent):
     bl_parent_id = "VIEW3D_PT_panel_options"
@@ -171,28 +171,28 @@ class NonAnimatable(PanelParent):
             
             if (isinstance(propGroup, str)):
                 row = col.row()
-                row.prop(context.scene.Buddy_Props, propGroup)
+                row.prop(context.scene.Stitcher_Props, propGroup)
             elif(isinstance(propGroup, tuple)):
                 row = col.row()
                 row.label(text=propGroup[0]+":")
                 row = col.row()
                 for prop in propGroup[1:]:
-                    row.prop(context.scene.Buddy_Props, prop[0], text=prop[1])
+                    row.prop(context.scene.Stitcher_Props, prop[0], text=prop[1])
 
         row = col.row()
         row.label(text="Extruder Error")
         row = col.row()
-        row.prop(context.scene.Buddy_Props, 'ExtruderError_Probability', text='Probability')
+        row.prop(context.scene.Stitcher_Props, 'ExtruderError_Probability', text='Probability')
         row.operator('opr.external_perimeter_selector', text='Make Selection')
         
         row = col.row()
-        row.prop(context.scene.Buddy_Props, 'ExtruderError_Density', text='Density')
+        row.prop(context.scene.Stitcher_Props, 'ExtruderError_Density', text='Density')
         row.operator('opr.geometry_nodes_applicator', text='Apply Errors')
         row.enabled = bool(len(context.selected_objects))
 
 
 
-class Buddy_Props(bpy.types.PropertyGroup):
+class Stitcher_Props(bpy.types.PropertyGroup):
     ObjectName: bpy.props.StringProperty(name='Object Name', description='What to name the imported object collection', default='OBJECT')
     BevelName: bpy.props.StringProperty(name='Bevel Name', description='What to name the created bevel profiles', default='bevel')
     FilePath: bpy.props.StringProperty(name='File Path', description="Path of GCode file", subtype="FILE_PATH")
@@ -229,7 +229,7 @@ class Buddy_Props(bpy.types.PropertyGroup):
     Status = bpy.props.StringProperty(name='Status', description="Processing Status", default="Not Processing")
 
 CLASSES = [
-    Buddy_Props, Options, Filters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, NonAnimatable, ExternalPerimeterSelector, GeometryNodesApplicator, MeshifyOperator
+    Stitcher_Props, Options, Filters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, NonAnimatable, ExternalPerimeterSelector, GeometryNodesApplicator, MeshifyOperator
 ]
 
 propsMain = [
@@ -246,7 +246,7 @@ def register():
     for klass in CLASSES:
         bpy.utils.register_class(klass)
 
-    bpy.types.Scene.Buddy_Props = bpy.props.PointerProperty(type=Buddy_Props)
+    bpy.types.Scene.Stitcher_Props = bpy.props.PointerProperty(type=Stitcher_Props)
 
     
 
@@ -256,7 +256,7 @@ def unregister():
         bpy.utils.unregister_class(klass)
 
 
-    del bpy.types.Scene.Buddy_Props
+    del bpy.types.Scene.Stitcher_Props
 
     
 

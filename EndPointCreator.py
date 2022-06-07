@@ -68,7 +68,7 @@ def createStartPoint(curveOB, bevelShape): ##Start point rounding
 
     return startPointBevel
 
-def createEndPoints(curveOB, params, coin, seamDistanceProp = "Buddy_Props.SeamDistance"):
+def createEndPoints(curveOB, params, coin, seamDistanceProp = "Stitcher_Props.SeamDistance"):
     
     headProb = params[ParamNames.seamAbberations][ParamNames.probability]
     abbAmount = params[ParamNames.seamAbberations][ParamNames.amount]
