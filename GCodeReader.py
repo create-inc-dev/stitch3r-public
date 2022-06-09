@@ -303,7 +303,7 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
     parentCollection =  bpy.data.collections.new(objectName)
     bpy.context.scene.collection.children.link(parentCollection)
 
-    numberOfLayers = len(listOfParsedLayers)
+    numberOfLayers = len(listOfParsedLayers) - 1
     for currentLayer in listOfParsedLayers:
         
         prevWidth = 0
@@ -368,4 +368,4 @@ def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params = {}
         i = i + 1
     print("")
     
-    bpy.context.scene["Buddy_Object_Collection"] = parentCollection
+    bpy.context.scene["Stitcher_Object_Collection"] = parentCollection

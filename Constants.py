@@ -13,8 +13,8 @@ class ParamNames:
 
 class Keywords:
     layerNumber = "layerNumber"
-    materialName = "Buddy Material"
-    geoNodesName = "Buddy Geometry Nodes"
+    materialName = "Stitcher Material"
+    geoNodesName = "Stitcher Geometry Nodes"
     importCollectionName = "Import Things"
     geoNodesModifierName = "GeoNodes"
     viewportOnly = "ViewportOnly"

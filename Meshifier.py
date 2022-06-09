@@ -8,6 +8,7 @@ Types = sys.modules[moduleParentName + '.Constants'].Types
 objectProperties = sys.modules[moduleParentName + '.Constants'].objectProperties
 Keywords = sys.modules[moduleParentName + '.Constants'].Keywords
 GCodeReader = sys.modules[moduleParentName + '.GCodeReader']
+ExtruderErrorCreator = sys.modules[moduleParentName + '.ExtruderErrorCreator']
 
 def convertToMesh(curveOB):
     deg = bpy.context.evaluated_depsgraph_get()
@@ -32,60 +33,37 @@ def meshify(collection):
     allObjects = list(collection.all_objects)
     totalObjects = len(allObjects)
     processedObjects = 0
-    numberOfEndPoints = 0
+    
+
+    for obj in bpy.context.selected_objects:
+        obj.select_set(False)
 
     for curveOB in allObjects:
         if (curveOB and curveOB.type == "CURVE" and curveOB["type"] == Types.endPoint):
-            meshOB = convertToMesh(curveOB)
-            parentOB = curveOB[Keywords.parent]
-
-            if (curveOB == parentOB[Keywords.startPoint]):
-                parentOB[Keywords.startPoint] = meshOB
-            else:
-                parentOB[Keywords.endPoint] = meshOB
-
-            bpy.data.objects.remove(curveOB)
+            appliedMatrixWorld = curveOB.matrix_world.copy()
             
-            processedObjects = processedObjects + 1
-            numberOfEndPoints = numberOfEndPoints + 1
-            print("Processed Objects: {}/{}".format(processedObjects, totalObjects), end="\r", flush=True)
+            for d in curveOB.animation_data.drivers:
+                if (d.data_path == 'constraints["Follow Path"].offset_factor'):
+                    curveOB.animation_data.drivers.remove(d)
 
+            for c in curveOB.constraints:
+                curveOB.constraints.remove(c)
 
-            
-    allObjects = list(collection.all_objects)
-    for curveOB in allObjects:
+            curveOB.matrix_world = appliedMatrixWorld
+
         if (curveOB and curveOB.type == "CURVE" and curveOB["type"] != Types.endPoint):
+            curveOB.modifiers.get('split').show_viewport = True
             curveOB.data.resolution_u = curveOB.data.render_resolution_u
+        
+        processedObjects  = processedObjects + 1
+        print("Prepropcessing for meshify done: {}/{}".format(processedObjects, totalObjects), end='\r', flush=True)
+        curveOB.select_set(True)
 
-            curveDataName = curveOB.data.name
-            meshOB = convertToMesh(curveOB) 
 
-            if (Keywords.startPoint in meshOB.keys()):
-                meshOB[Keywords.startPoint][Keywords.parent] = meshOB
-                meshOB[Keywords.endPoint][Keywords.parent] = meshOB
+    print("\nRunning Convert To Mesh Operation")
 
-            bpy.data.objects.remove(curveOB)
-            bpy.data.curves.remove(bpy.data.curves.get(curveDataName))
-            
-            GCodeReader.addVisibilityDriver(meshOB, "hide_viewport")
-            GCodeReader.addVisibilityDriver(meshOB, "hide_render")
+    bpy.ops.object.convert(target="MESH")
 
-            processedObjects = processedObjects + 1
-            print("Processed Objects: {}/{}".format(processedObjects, totalObjects), end="\r", flush=True)
-
-    print("")
-    allObjects = list(collection.all_objects)
-
-    processedObjects = 0
-    for meshOB in allObjects:
-        if (meshOB and meshOB.type == "MESH" and meshOB["type"] == Types.endPoint):
-            GCodeReader.addVisibilityDriver(meshOB, "hide_viewport")
-            GCodeReader.addVisibilityDriver(meshOB, "hide_render")
-
-            processedObjects = processedObjects + 1
-            print("Secondary Processing: {}/{}".format(processedObjects, numberOfEndPoints), end="\r", flush=True)
-
-            
 
             
 

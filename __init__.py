@@ -1,4 +1,5 @@
 from pickle import TRUE
+from pydoc import describe
 from random import seed
 import bpy
 import sys
@@ -34,7 +35,8 @@ class GCodeLoaderOperator(bpy.types.Operator):
     
     bl_idname = 'opr.gcode_loader'
     bl_label = 'Load GCode'
-    
+    bl_description = "Load the GCode and construct the model"
+
     def execute(self, context):
 
         fileName = getattr(bpy.context.scene.Stitcher_Props, 'FilePath')
@@ -50,7 +52,6 @@ class GCodeLoaderOperator(bpy.types.Operator):
                     params[propGroup[0]][prop[1]] = getattr(bpy.context.scene.Stitcher_Props, prop[0])
                     
         params[ParamNames.seed] = 237
-        params[ParamNames.precision] = 2
 
         filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets.blend")
         with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
@@ -64,7 +65,8 @@ class AssetLoaderOperator(bpy.types.Operator):
     
     bl_idname = 'opr.asset_loader'
     bl_label = 'Load Assets'
-    
+    bl_description = "Load the plate, backdrop and camera and lighting"
+
     def execute(self, context):
         filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets.blend")
         with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
@@ -79,9 +81,10 @@ class AssetLoaderOperator(bpy.types.Operator):
 class MeshifyOperator(bpy.types.Operator):
     bl_idname = 'opr.meshifier'
     bl_label = 'Meshify!!!'
+    bl_description = "VERY SLOW, VERY EXPERIMENTAL!!! DO NOT USE!!!\nConverts everything to mesh"
 
     def execute(self, context):
-        sys.modules[modulesFullNames['Meshifier']].meshify(bpy.context.scene["Buddy_Object_Collection"])
+        sys.modules[modulesFullNames['Meshifier']].meshify(bpy.context.scene["Stitcher_Object_Collection"])
         return {'FINISHED'}
 
 class ExternalPerimeterSelector(bpy.types.Operator):
@@ -93,7 +96,7 @@ class ExternalPerimeterSelector(bpy.types.Operator):
         seed = 237
         probability = getattr(bpy.context.scene.Stitcher_Props, 'ExtruderError_Probability')
 
-        sys.modules[modulesFullNames['ExtruderErrorCreator']].makeSelection(bpy.context.scene["Buddy_Object_Collection"], probability, seed)
+        sys.modules[modulesFullNames['ExtruderErrorCreator']].makeSelection(bpy.context.scene["Stitcher_Object_Collection"], probability, seed)
         return {'FINISHED'}
 
 class GeometryNodesApplicator(bpy.types.Operator):
@@ -108,7 +111,7 @@ class GeometryNodesApplicator(bpy.types.Operator):
 class PanelParent(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "3D-Print Buddy"
+    bl_category = "Stitch3r"
     
 
 class Options(PanelParent ):
@@ -199,8 +202,10 @@ class Stitcher_Props(bpy.types.PropertyGroup):
     
     SeamAbberation_Amount: bpy.props.FloatProperty(name='Seam Abberation Distance', default=0, description='The maximum amount to vary the seams', min=0)
     SeamAbberation_Probability: bpy.props.FloatProperty(name='Seam Abberation Probability', default=0, description='The probability with which a seam would be picked to be varied.\n0 being none and 1 being all', min=0, max=100)
+    
     WidthOffset: bpy.props.FloatProperty(name='Width Offset', default=0, description='All the lines widths would be offset by this amount', min=-1, max=1)
     HeightOffset: bpy.props.FloatProperty(name='Height Offset', default=0, description='All the lines heights would be offset by this amount ', min=-1, max=1)
+    Precision: bpy.props.IntProperty(name='Precision', description="What decimal place to round off the width and height of the line to", default=1, min=1, max=3)
     ExtruderError_Density: bpy.props.FloatProperty(name='Extruder Error Density', default=0.1, description='The density of extruder mistakes', min=0.00, max=1.00, step=0.05)
     ExtruderError_Probability: bpy.props.FloatProperty(name='Extruder Error Probability', default=0, description='The probability with which a point would be picked to be varied.\n0 being none and 1 being all', min=0)
 
@@ -238,7 +243,7 @@ propsMain = [
 
 propsFilter = ['Gap_fill', 'External_perimeter', 'Perimeter', 'Top_solid_infill', 'Bridge_infill', 'Internal_infill', 'Custom', 'Solid_infill', 'Skirt_Brim', 'End_Point', 'Overhang_perimeter', 'Support_material', 'Support_material_interface', 'Extruder_Error']
 propsAnimatable = ['SeamDistance', 'LayerIndexTop']
-propsNonAnimatable = ['WidthOffset', 'HeightOffset', ('Seam Abberations', ('SeamAbberation_Amount', 'Amount'), ('SeamAbberation_Probability', 'Probability')), ] 
+propsNonAnimatable = ['WidthOffset', 'HeightOffset', 'Precision', ('Seam Abberations', ('SeamAbberation_Amount', 'Amount'), ('SeamAbberation_Probability', 'Probability')), ] 
 
 
 def register():
