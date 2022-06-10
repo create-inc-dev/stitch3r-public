@@ -105,7 +105,7 @@ def gcodeParser(gcodeFilePath, params):
             try:
                 line = next(linesIterator)
                 curLineNumber = curLineNumber + 1
-                height = float(heightPattern.search(line)[1])
+                height = round(float(heightPattern.search(line)[1]), precision)
                 valueTacker['H'] = height
                 
             except (IndexError, TypeError):
