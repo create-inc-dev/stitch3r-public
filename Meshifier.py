@@ -61,7 +61,7 @@ def meshify(collection):
 
 
     print("\nRunning Convert To Mesh Operation")
-
+    bpy.context.view_layer.objects.active = allObjects[0]
     bpy.ops.object.convert(target="MESH")
 
 

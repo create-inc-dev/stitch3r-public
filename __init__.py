@@ -31,13 +31,14 @@ for currentModuleFullName in modulesFullNames.values():
 
 ParamNames = sys.modules[modulesFullNames['Constants']].ParamNames
 Keywords = sys.modules[modulesFullNames['Constants']].Keywords
+GCodeReader = sys.modules[modulesFullNames['GCodeReader']]
 class GCodeLoaderOperator(bpy.types.Operator):
     
     bl_idname = 'opr.gcode_loader'
     bl_label = 'Load GCode'
     bl_description = "Load the GCode and construct the model"
 
-    def execute(self, context):
+    """def execute(self, context):
 
         fileName = getattr(bpy.context.scene.Stitcher_Props, 'FilePath')
         
@@ -59,7 +60,127 @@ class GCodeLoaderOperator(bpy.types.Operator):
             data_to.node_groups = [Keywords.geoNodesName]
         
         sys.modules[modulesFullNames['GCodeReader']].builder(fileName, params=params)
-        return {'FINISHED'}
+        return {'FINISHED'}"""
+
+    def modal(self, context, event):
+        if self.state == 2:
+            print("")
+            return {'FINISHED'}
+        elif self.state == 0:
+            self.coin = sys.modules[modulesFullNames['Constants']].BiasedCoin(self.params[ParamNames.seed])
+
+            self.objectName = getattr(bpy.context.scene.Stitcher_Props, 'ObjectName')
+            self.bevelSuffix = getattr(bpy.context.scene.Stitcher_Props, 'BevelName')
+
+            i = 0
+            
+            self.parentCollection =  bpy.data.collections.new(self.objectName)
+            bpy.context.scene.collection.children.link(self.parentCollection)
+
+            self.numberOfLayers = len(self.listOfParsedLayers) - 1
+            self.state = 1
+
+            self.report({'INFO'}, 'GCode Parsed Successfully')
+            return {'RUNNING_MODAL'}
+
+        elif self.state == 1:
+            try:
+                currentLayer = self.listOfParsedLayers.pop(0)
+            except IndexError:
+                self.state = 2
+                return {'RUNNING_MODAL'}
+
+
+            prevWidth = 0
+            prevType = "Custom"
+            prevHeight = 0
+            coords = []
+
+            
+            layerCollection = bpy.data.collections.new("Layer " + str(currentLayer.layerNumber))
+            self.parentCollection.children.link(layerCollection)
+
+            def placeCurveFunc(curveType):
+            
+                curveOB = GCodeReader.placeCurve(coords, prevWidth, prevHeight, currentLayer.zPos, prevType, currentLayer.layerNumber, self.bevelSuffix, layerCollection, self.params)
+                if (not curveOB == None):
+                    GCodeReader.addVisibilityDriver(curveOB, "hide_viewport")
+                    GCodeReader.addVisibilityDriver(curveOB, "hide_render")
+                
+
+                if (curveType in ["External_perimeter", "Skirt_Brim", "Perimeter", "Top_solid_infill", "Overhang_perimeter"] and not curveOB == None ):
+                    endPoint, startPoint = sys.modules[modulesFullNames['GCodeReader']].createEndPoints(curveOB, self.params, self.coin)
+                    layerCollection.objects.link(endPoint)
+                    layerCollection.objects.link(startPoint)
+                    
+                    GCodeReader.addVisibilityDriver(endPoint, "hide_viewport")
+                    GCodeReader.addVisibilityDriver(startPoint, "hide_viewport")
+                    GCodeReader.addVisibilityDriver(endPoint, "hide_render")
+                    GCodeReader.addVisibilityDriver(startPoint, "hide_render")
+                    curveOB[Keywords.startPoint] = startPoint
+                    curveOB[Keywords.endPoint] = startPoint
+
+            for elem in currentLayer.gcodes:
+            #print(elem)
+                if (elem["E"] > 0):
+                    if (elem['W'] == prevWidth and elem['type'] == prevType and elem['H'] == prevHeight):
+                        coords.append((elem['X'],elem['Y'],elem['Z']))
+                    else:
+                        placeCurveFunc(prevType)
+                
+                        prevWidth = elem['W']
+                        prevType = elem['type']
+                        prevHeight = elem['H']
+
+                        coords = coords[-1:]
+                        coords.append((elem['X'],elem['Y'],elem['Z']))
+                    
+                else:
+                    
+                    placeCurveFunc(prevType)
+                    coords = [(elem['X'],elem['Y'],elem['Z'])]
+
+                
+            placeCurveFunc(prevType)
+            print("Layer Done: {}/{}".format(currentLayer.layerNumber, self.numberOfLayers), end='\r', flush=True)
+
+            self.report({'INFO'}, "Layer Done: {}/{}".format(currentLayer.layerNumber, self.numberOfLayers))
+            
+            return {'RUNNING_MODAL'}
+
+
+
+
+
+    def invoke(self, context, event):
+        fileName = getattr(bpy.context.scene.Stitcher_Props, 'FilePath')
+        
+        params = {}
+        for propGroup in propsNonAnimatable:
+            
+            if (isinstance(propGroup, str)):
+                params[propGroup] = getattr(bpy.context.scene.Stitcher_Props, propGroup)
+            elif(isinstance(propGroup, tuple)):
+                params[propGroup[0]] = {}
+                for prop in propGroup[1:]:
+                    params[propGroup[0]][prop[1]] = getattr(bpy.context.scene.Stitcher_Props, prop[0])
+                    
+        params[ParamNames.seed] = 237
+
+        filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets.blend")
+        with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
+            data_to.materials = [Keywords.materialName]
+            data_to.node_groups = [Keywords.geoNodesName]
+
+        self.fileName = fileName
+        self.params = params
+        self.state = 0
+        self.i = 0
+        self.listOfParsedLayers = GCodeReader.gcodeParser(self.fileName, self.params)
+
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
 
 class AssetLoaderOperator(bpy.types.Operator):
     
@@ -130,6 +251,7 @@ class Options(PanelParent ):
         col.operator('opr.asset_loader', text='Load Assets')
         row = col.row()
         col.operator('opr.meshifier')
+        row = col.row()
 
 
 
@@ -231,7 +353,7 @@ class Stitcher_Props(bpy.types.PropertyGroup):
     SeamDistance: bpy.props.FloatProperty(name='Seam Distance', default=0.2, description='How far apart should the seams be to get a desired look', min=0)
     LayerIndexTop: bpy.props.IntProperty(name='Layer Index', default=5000, description='The topmost layer to show, every layer after this would be hidden', min=0)
 
-    Status = bpy.props.StringProperty(name='Status', description="Processing Status", default="Not Processing")
+    Status = bpy.props.StringProperty(name='Status', description='Processing Status', default='Not Processing')
 
 CLASSES = [
     Stitcher_Props, Options, Filters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, NonAnimatable, ExternalPerimeterSelector, GeometryNodesApplicator, MeshifyOperator
