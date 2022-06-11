@@ -1,6 +1,7 @@
 from pickle import TRUE
 from pydoc import describe
 from random import seed
+import time
 import bpy
 import sys
 import os
@@ -65,6 +66,12 @@ class GCodeLoaderOperator(bpy.types.Operator):
     def modal(self, context, event):
         if self.state == 2:
             print("")
+            self.endTime = time.time()
+
+            timeTaken = self.endTime - self.startTime
+
+            bpy.context.scene["Stitcher_Object_Collection"] = self.parentCollection
+            bpy.context.scene.Stitcher_Props.Status = "Processing Done took {}s".format(timeTaken)
             return {'FINISHED'}
         elif self.state == 0:
             self.coin = sys.modules[modulesFullNames['Constants']].BiasedCoin(self.params[ParamNames.seed])
@@ -81,6 +88,7 @@ class GCodeLoaderOperator(bpy.types.Operator):
             self.state = 1
 
             self.report({'INFO'}, 'GCode Parsed Successfully')
+            bpy.context.scene.Stitcher_Props.Status = "GCode Parsed Successfully"
             return {'RUNNING_MODAL'}
 
         elif self.state == 1:
@@ -144,6 +152,8 @@ class GCodeLoaderOperator(bpy.types.Operator):
             placeCurveFunc(prevType)
             print("Layer Done: {}/{}".format(currentLayer.layerNumber, self.numberOfLayers), end='\r', flush=True)
 
+            bpy.context.scene.Stitcher_Props.Status = "Layer Done: {}/{}".format(currentLayer.layerNumber, self.numberOfLayers)
+            
             self.report({'INFO'}, "Layer Done: {}/{}".format(currentLayer.layerNumber, self.numberOfLayers))
             
             return {'RUNNING_MODAL'}
@@ -153,6 +163,7 @@ class GCodeLoaderOperator(bpy.types.Operator):
 
 
     def invoke(self, context, event):
+        self.startTime = time.time()
         fileName = getattr(bpy.context.scene.Stitcher_Props, 'FilePath')
         
         params = {}
@@ -166,6 +177,7 @@ class GCodeLoaderOperator(bpy.types.Operator):
                     params[propGroup[0]][prop[1]] = getattr(bpy.context.scene.Stitcher_Props, prop[0])
                     
         params[ParamNames.seed] = 237
+        params[ParamNames.whPrecision] = 2
 
         filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets.blend")
         with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
@@ -252,6 +264,7 @@ class Options(PanelParent ):
         row = col.row()
         col.operator('opr.meshifier')
         row = col.row()
+        row.label(text=context.scene.Stitcher_Props.Status)
 
 
 
@@ -327,7 +340,7 @@ class Stitcher_Props(bpy.types.PropertyGroup):
     
     WidthOffset: bpy.props.FloatProperty(name='Width Offset', default=0, description='All the lines widths would be offset by this amount', min=-1, max=1)
     HeightOffset: bpy.props.FloatProperty(name='Height Offset', default=0, description='All the lines heights would be offset by this amount ', min=-1, max=1)
-    Precision: bpy.props.IntProperty(name='Precision', description="What decimal place to round off the width and height of the line to", default=1, min=1, max=3)
+    Precision: bpy.props.IntProperty(name='Precision', description="What decimal place to round off the GCode Coordinates to", default=4, min=2, max=10)
     ExtruderError_Density: bpy.props.FloatProperty(name='Extruder Error Density', default=0.1, description='The density of extruder mistakes', min=0.00, max=1.00, step=0.05)
     ExtruderError_Probability: bpy.props.FloatProperty(name='Extruder Error Probability', default=0, description='The probability with which a point would be picked to be varied.\n0 being none and 1 being all', min=0)
 
@@ -353,7 +366,7 @@ class Stitcher_Props(bpy.types.PropertyGroup):
     SeamDistance: bpy.props.FloatProperty(name='Seam Distance', default=0.2, description='How far apart should the seams be to get a desired look', min=0)
     LayerIndexTop: bpy.props.IntProperty(name='Layer Index', default=5000, description='The topmost layer to show, every layer after this would be hidden', min=0)
 
-    Status = bpy.props.StringProperty(name='Status', description='Processing Status', default='Not Processing')
+    Status: bpy.props.StringProperty(name='Status', description='Processing Status', default='Not Processing')
 
 CLASSES = [
     Stitcher_Props, Options, Filters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, NonAnimatable, ExternalPerimeterSelector, GeometryNodesApplicator, MeshifyOperator

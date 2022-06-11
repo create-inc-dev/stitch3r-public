@@ -56,7 +56,9 @@ def gcodeParser(gcodeFilePath, params):
 
     valueTacker = {'X':0, 'Y':0, 'Z':0, 'E':0, 'W':0.5, 'H':0.2, 'layerNumber':0, 'type':'Custom'} #E is extrusion; X, Y and Z are the coordinates; W is width of the  print line
 
+    whPrecision = params[ParamNames.whPrecision]
     precision = params[ParamNames.precision]
+
     while True:
         try:
             line = next(linesIterator)
@@ -85,7 +87,7 @@ def gcodeParser(gcodeFilePath, params):
                 for term in separatedGcode:
                     tempDict[term[0]] = float(term[1:])
                     if term[0] in ['X', 'Y', 'Z']:
-                        valueTacker[term[0]] = float(term[1:])
+                        valueTacker[term[0]] = round(float(term[1:]), precision)
                 tempDict['lineNumber'] = curLineNumber
                 
                 prevLayerGcodes.append(tempDict.copy())
@@ -105,7 +107,7 @@ def gcodeParser(gcodeFilePath, params):
             try:
                 line = next(linesIterator)
                 curLineNumber = curLineNumber + 1
-                height = round(float(heightPattern.search(line)[1]), precision)
+                height = round(float(heightPattern.search(line)[1]), whPrecision)
                 valueTacker['H'] = height
                 
             except (IndexError, TypeError):
@@ -123,10 +125,10 @@ def gcodeParser(gcodeFilePath, params):
 
             
         elif bool(heightPattern.match(line)):
-            valueTacker['H'] = round(float(heightPattern.search(line)[1]), precision)
+            valueTacker['H'] = round(float(heightPattern.search(line)[1]), whPrecision)
 
         elif bool(widthPattern.match(line)):
-            valueTacker['W'] = round(float(widthPattern.search(line)[1]), precision)
+            valueTacker['W'] = round(float(widthPattern.search(line)[1]), whPrecision)
 
         elif bool(typePattern.match(line)):
             curveType = typePattern.search(line)[1].strip()
@@ -211,7 +213,7 @@ def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix,
     
     widthOffset = params[ParamNames.widthOffset]
     heightOffset = params[ParamNames.heightOffset]
-    precision = params[ParamNames.precision]
+    whPrecision = params[ParamNames.whPrecision]
 
     lengthOfCurve = 0
 
@@ -227,19 +229,34 @@ def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix,
         #It's not a polyline curve, it's a bezier curve being edited to emulate a polyline curve.
         #A polyline curve was giving uneven thickness when beveled
         polyline = curveData.splines.new('BEZIER')
-        polyline.bezier_points.add(len(coords)-1)
+        
         bevelObject = None
         prevCoord = coords[0]
+        
+        x,y,z = prevCoord
+        polyline.bezier_points[0].co = (x, y, z)
+        polyline.bezier_points[0].handle_left = (x, y, z)
+        polyline.bezier_points[0].handle_right = (x, y, z)
 
-        for i, coord in enumerate(coords):
-            x,y,z = coord
-            polyline.bezier_points[i].co = (x, y, z)
-            polyline.bezier_points[i].handle_left = (x, y, z)
-            polyline.bezier_points[i].handle_right = (x, y, z)
+        for i, coord in enumerate(coords[1:]):
 
-            lengthOfCurve = lengthOfCurve + math.dist(prevCoord, coord)
-            prevCoord = coord
+            distFromPreviousCoord = math.dist(prevCoord, coord)
 
+            if (distFromPreviousCoord > 0):
+                polyline.bezier_points.add(1)
+                lengthOfCurve = lengthOfCurve + distFromPreviousCoord
+                x,y,z = coord
+                
+                polyline.bezier_points[i+1].co = (x, y, z)
+                polyline.bezier_points[i+1].handle_left = (x, y, z)
+                polyline.bezier_points[i+1].handle_right = (x, y, z)
+                
+
+                
+                prevCoord = coord
+
+        if lengthOfCurve == 0:
+            return None
         
         curveOB = bpy.data.objects.new('myCurve', curveData)
         
@@ -258,7 +275,7 @@ def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix,
 
 
 
-        bevelName = ("{:."+str(precision)+"f}").format(width + widthOffset) + "_" + ("{:."+str(precision)+"f}").format(height + heightOffset) + "_" + bevelSuffix
+        bevelName = ("{:."+str(whPrecision)+"f}").format(width + widthOffset) + "_" + ("{:."+str(whPrecision)+"f}").format(height + heightOffset) + "_" + bevelSuffix
 
         if bevelName in bpy.data.objects.keys():
             bevelObject = bpy.data.objects.get(bevelName)

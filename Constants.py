@@ -4,6 +4,7 @@ class ParamNames:
     widthOffset = "WidthOffset"
     heightOffset = "HeightOffset"
     precision = "Precision"
+    whPrecision = "whPrecision"
     seamAbberations = "Seam Abberations"
 
     amount = "Amount"
