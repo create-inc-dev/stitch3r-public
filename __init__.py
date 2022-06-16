@@ -68,7 +68,7 @@ class GCodeLoaderOperator(bpy.types.Operator):
             print("")
             self.endTime = time.time()
 
-            timeTaken = self.endTime - self.startTime
+            timeTaken = int(self.endTime - self.startTime)
 
             bpy.context.scene["Stitcher_Object_Collection"] = self.parentCollection
             bpy.context.scene.Stitcher_Props.Status = "Processing Done took {}s".format(timeTaken)

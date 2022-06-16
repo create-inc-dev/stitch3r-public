@@ -247,9 +247,9 @@ def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix,
                 lengthOfCurve = lengthOfCurve + distFromPreviousCoord
                 x,y,z = coord
                 
-                polyline.bezier_points[i+1].co = (x, y, z)
-                polyline.bezier_points[i+1].handle_left = (x, y, z)
-                polyline.bezier_points[i+1].handle_right = (x, y, z)
+                polyline.bezier_points[-1].co = (x, y, z)
+                polyline.bezier_points[-1].handle_left = (x, y, z)
+                polyline.bezier_points[-1].handle_right = (x, y, z)
                 
 
                 
