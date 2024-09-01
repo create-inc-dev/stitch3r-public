@@ -1,6 +1,8 @@
 from pickle import TRUE
 from pydoc import describe
 from random import seed
+import io
+import re
 import time
 import bpy
 import sys
@@ -16,7 +18,7 @@ bl_info = {
     'description': 'An example addon',
 }
 
-modulesNames = [ 'Constants','ExtruderErrorCreator', 'Exceptions', 'EndPointCreator', 'BevelShapeCreator', 'GCodeReader', 'Meshifier' ]
+modulesNames = [ 'Constants','ExtruderErrorCreator', 'Exceptions', 'EndPointCreator', 'BevelShapeCreator', 'GCodeReader', 'Meshifier', 'GCodeLoaderOperator']
 
 modulesFullNames = {}
 for currentModuleName in modulesNames:
@@ -33,166 +35,10 @@ for currentModuleFullName in modulesFullNames.values():
 ParamNames = sys.modules[modulesFullNames['Constants']].ParamNames
 Keywords = sys.modules[modulesFullNames['Constants']].Keywords
 GCodeReader = sys.modules[modulesFullNames['GCodeReader']]
-class GCodeLoaderOperator(bpy.types.Operator):
-    
-    bl_idname = 'opr.gcode_loader'
-    bl_label = 'Load GCode'
-    bl_description = "Load the GCode and construct the model"
-
-    """def execute(self, context):
-
-        fileName = getattr(bpy.context.scene.Stitcher_Props, 'FilePath')
-        
-        params = {}
-        for propGroup in propsNonAnimatable:
-            
-            if (isinstance(propGroup, str)):
-                params[propGroup] = getattr(bpy.context.scene.Stitcher_Props, propGroup)
-            elif(isinstance(propGroup, tuple)):
-                params[propGroup[0]] = {}
-                for prop in propGroup[1:]:
-                    params[propGroup[0]][prop[1]] = getattr(bpy.context.scene.Stitcher_Props, prop[0])
-                    
-        params[ParamNames.seed] = 237
-
-        filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets.blend")
-        with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
-            data_to.materials = [Keywords.materialName]
-            data_to.node_groups = [Keywords.geoNodesName]
-        
-        sys.modules[modulesFullNames['GCodeReader']].builder(fileName, params=params)
-        return {'FINISHED'}"""
-
-    def modal(self, context, event):
-        if self.state == 2:
-            print("")
-            self.endTime = time.time()
-
-            timeTaken = int(self.endTime - self.startTime)
-
-            bpy.context.scene["Stitcher_Object_Collection"] = self.parentCollection
-            bpy.context.scene.Stitcher_Props.Status = "Processing Done took {}s".format(timeTaken)
-            return {'FINISHED'}
-        elif self.state == 0:
-            self.coin = sys.modules[modulesFullNames['Constants']].BiasedCoin(self.params[ParamNames.seed])
-
-            self.objectName = getattr(bpy.context.scene.Stitcher_Props, 'ObjectName')
-            self.bevelSuffix = getattr(bpy.context.scene.Stitcher_Props, 'BevelName')
-
-            i = 0
-            
-            self.parentCollection =  bpy.data.collections.new(self.objectName)
-            bpy.context.scene.collection.children.link(self.parentCollection)
-
-            self.numberOfLayers = len(self.listOfParsedLayers) - 1
-            self.state = 1
-
-            self.report({'INFO'}, 'GCode Parsed Successfully')
-            bpy.context.scene.Stitcher_Props.Status = "GCode Parsed Successfully"
-            return {'RUNNING_MODAL'}
-
-        elif self.state == 1:
-            try:
-                currentLayer = self.listOfParsedLayers.pop(0)
-            except IndexError:
-                self.state = 2
-                return {'RUNNING_MODAL'}
+GCodeLoaderOperatorModule = sys.modules[modulesFullNames['GCodeLoaderOperator']]
 
 
-            prevWidth = 0
-            prevType = "Custom"
-            prevHeight = 0
-            coords = []
-
-            
-            layerCollection = bpy.data.collections.new("Layer " + str(currentLayer.layerNumber))
-            self.parentCollection.children.link(layerCollection)
-
-            def placeCurveFunc(curveType):
-            
-                curveOB = GCodeReader.placeCurve(coords, prevWidth, prevHeight, currentLayer.zPos, prevType, currentLayer.layerNumber, self.bevelSuffix, layerCollection, self.params)
-                if (not curveOB == None):
-                    GCodeReader.addVisibilityDriver(curveOB, "hide_viewport")
-                    GCodeReader.addVisibilityDriver(curveOB, "hide_render")
-                
-
-                if (curveType in ["External_perimeter", "Skirt_Brim", "Perimeter", "Top_solid_infill", "Overhang_perimeter"] and not curveOB == None ):
-                    endPoint, startPoint = sys.modules[modulesFullNames['GCodeReader']].createEndPoints(curveOB, self.params, self.coin)
-                    layerCollection.objects.link(endPoint)
-                    layerCollection.objects.link(startPoint)
-                    
-                    GCodeReader.addVisibilityDriver(endPoint, "hide_viewport")
-                    GCodeReader.addVisibilityDriver(startPoint, "hide_viewport")
-                    GCodeReader.addVisibilityDriver(endPoint, "hide_render")
-                    GCodeReader.addVisibilityDriver(startPoint, "hide_render")
-                    curveOB[Keywords.startPoint] = startPoint
-                    curveOB[Keywords.endPoint] = startPoint
-
-            for elem in currentLayer.gcodes:
-            #print(elem)
-                if (elem["E"] > 0):
-                    if (elem['W'] == prevWidth and elem['type'] == prevType and elem['H'] == prevHeight):
-                        coords.append((elem['X'],elem['Y'],elem['Z']))
-                    else:
-                        placeCurveFunc(prevType)
-                
-                        prevWidth = elem['W']
-                        prevType = elem['type']
-                        prevHeight = elem['H']
-
-                        coords = coords[-1:]
-                        coords.append((elem['X'],elem['Y'],elem['Z']))
-                    
-                else:
-                    
-                    placeCurveFunc(prevType)
-                    coords = [(elem['X'],elem['Y'],elem['Z'])]
-
-                
-            placeCurveFunc(prevType)
-            print("Layer Done: {}/{}".format(currentLayer.layerNumber, self.numberOfLayers), end='\r', flush=True)
-
-            bpy.context.scene.Stitcher_Props.Status = "Layer Done: {}/{}".format(currentLayer.layerNumber, self.numberOfLayers)
-            
-            self.report({'INFO'}, "Layer Done: {}/{}".format(currentLayer.layerNumber, self.numberOfLayers))
-            
-            return {'RUNNING_MODAL'}
-
-
-
-
-
-    def invoke(self, context, event):
-        self.startTime = time.time()
-        fileName = getattr(bpy.context.scene.Stitcher_Props, 'FilePath')
-        
-        params = {}
-        for propGroup in propsNonAnimatable:
-            
-            if (isinstance(propGroup, str)):
-                params[propGroup] = getattr(bpy.context.scene.Stitcher_Props, propGroup)
-            elif(isinstance(propGroup, tuple)):
-                params[propGroup[0]] = {}
-                for prop in propGroup[1:]:
-                    params[propGroup[0]][prop[1]] = getattr(bpy.context.scene.Stitcher_Props, prop[0])
-                    
-        params[ParamNames.seed] = 237
-        params[ParamNames.whPrecision] = 2
-
-        filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets.blend")
-        with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
-            data_to.materials = [Keywords.materialName]
-            data_to.node_groups = [Keywords.geoNodesName]
-
-        self.fileName = fileName
-        self.params = params
-        self.state = 0
-        self.i = 0
-        self.listOfParsedLayers = GCodeReader.gcodeParser(self.fileName, self.params)
-
-        context.window_manager.modal_handler_add(self)
-        return {'RUNNING_MODAL'}
-
+GCodeLoaderOperator = GCodeLoaderOperatorModule.GCodeLoaderOperator 
 
 class AssetLoaderOperator(bpy.types.Operator):
     
@@ -328,12 +174,76 @@ class NonAnimatable(PanelParent):
         row.operator('opr.geometry_nodes_applicator', text='Apply Errors')
         row.enabled = bool(len(context.selected_objects))
 
+class TypeFilters(PanelParent):
+    bl_parent_id = "VIEW3D_PT_panel_options"
+    bl_idname = 'VIEW3D_PT_panel_type_filters'
+    bl_label = "Type Filters"
+    bl_options = {"DEFAULT_CLOSED"}
 
+    def draw(self, context):
+        col = self.layout.column()
+        row = col.row()
+        row.prop(context.scene.Stitcher_Props,'ViewportOnly')
+        row = col.row()
+        row.label(text="Features:")
+        for propKeyValue in context.scene.Stitcher_Props.TypesFiltersMap:
+            row = col.row()
+            row.prop(propKeyValue, "value", text=propKeyValue.key)
+
+class KeyValueType(bpy.types.PropertyGroup):
+    key: bpy.props.StringProperty(name="Key")
+    value: bpy.props.BoolProperty(name="Value")
+
+
+def fileNameUpdationFunction(self, context):
+
+    self.Status = "Preprocessing the File"
+    startTime = time.time()
+    file = open(self.FilePath, 'r')
+    print (self.FilePath)
+
+    fi = io.FileIO(file.fileno())
+    fb = io.BufferedReader(fi)
+
+    typesSet = set()
+    line = fb.readline()
+
+    typePattern = re.compile("\s*;TYPE:(.*)$")
+
+    while line :
+        line = line.decode().strip()
+        if bool(typePattern.match(line)):
+            curveType = typePattern.search(line)[1].strip()
+            subbedType  = re.sub(" |/","_", curveType)
+            typesSet.add(subbedType)
+
+        line = fb.readline()
+
+    file.close()
+
+    self.TypesFiltersMap.clear()
+    self.TypesFiltersDict.clear()
+
+    for idx, item in enumerate(typesSet):
+        temp = self.TypesFiltersMap.add()
+        temp.key = item
+        temp.value = True
+
+        self.TypesFiltersDict[item] = idx
+
+
+
+
+    endTime = time.time()
+    timeTaken = int(endTime - startTime)
+
+    self.Status = "File Preprocessing Done: took {}s".format(timeTaken)
 
 class Stitcher_Props(bpy.types.PropertyGroup):
+
     ObjectName: bpy.props.StringProperty(name='Object Name', description='What to name the imported object collection', default='OBJECT')
     BevelName: bpy.props.StringProperty(name='Bevel Name', description='What to name the created bevel profiles', default='bevel')
-    FilePath: bpy.props.StringProperty(name='File Path', description="Path of GCode file", subtype="FILE_PATH")
+    FilePath: bpy.props.StringProperty(name='File Path', description="Path of GCode file", subtype="FILE_PATH", update=fileNameUpdationFunction)
     
     SeamAbberation_Amount: bpy.props.FloatProperty(name='Seam Abberation Distance', default=0, description='The maximum amount to vary the seams', min=0)
     SeamAbberation_Probability: bpy.props.FloatProperty(name='Seam Abberation Probability', default=0, description='The probability with which a seam would be picked to be varied.\n0 being none and 1 being all', min=0, max=100)
@@ -344,19 +254,9 @@ class Stitcher_Props(bpy.types.PropertyGroup):
     ExtruderError_Density: bpy.props.FloatProperty(name='Extruder Error Density', default=0.1, description='The density of extruder mistakes', min=0.00, max=1.00, step=0.05)
     ExtruderError_Probability: bpy.props.FloatProperty(name='Extruder Error Probability', default=0, description='The probability with which a point would be picked to be varied.\n0 being none and 1 being all', min=0)
 
-    Gap_fill: bpy.props.BoolProperty(name='Gap fill', default=True)
-    External_perimeter: bpy.props.BoolProperty(name='External perimeter', default=True)
-    Overhang_perimeter: bpy.props.BoolProperty(name='Overhang perimeter', default=True)
-    Perimeter: bpy.props.BoolProperty(name='Perimeter', default=True)
-    Top_solid_infill: bpy.props.BoolProperty(name='Top solid infill', default=True)
-    Bridge_infill: bpy.props.BoolProperty(name='Bridge infill', default=True)
-    Internal_infill: bpy.props.BoolProperty(name='Internal infill', default=True)
-    Custom: bpy.props.BoolProperty(name='Custom', default=True)
-    Solid_infill: bpy.props.BoolProperty(name='Solid infill', default=True)
-    Skirt_Brim: bpy.props.BoolProperty(name='Skirt/Brim', default=True)
-    Support_material: bpy.props.BoolProperty(name='Support material', default=True)
-    Support_material_interface: bpy.props.BoolProperty(name='Support material interface', default=True)
-    
+    TypesFiltersMap: bpy.props.CollectionProperty(type=KeyValueType)
+    TypesFiltersDict = {}
+
     ViewportOnly: bpy.props.BoolProperty(name='Viewport Only', description="The filters below would only affect the viewport.\nThe features would still appear in the render", default=True)
 
     End_Point: bpy.props.BoolProperty(name='End Point', default=True)
@@ -368,8 +268,21 @@ class Stitcher_Props(bpy.types.PropertyGroup):
 
     Status: bpy.props.StringProperty(name='Status', description='Processing Status', default='Not Processing')
 
+
+
+    def get_filter_value(self, key):
+        for item in self.TypesFiltersMap:
+            if item.key == key:
+                return item.value
+            
+    
+    def get_filter_index(self, key):
+        for idx, item in enumerate(self.TypesFiltersMap):
+            if item.key == key:
+                return idx
+
 CLASSES = [
-    Stitcher_Props, Options, Filters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, NonAnimatable, ExternalPerimeterSelector, GeometryNodesApplicator, MeshifyOperator
+   KeyValueType, Stitcher_Props, Options, TypeFilters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, NonAnimatable, ExternalPerimeterSelector, GeometryNodesApplicator, MeshifyOperator,
 ]
 
 propsMain = [
