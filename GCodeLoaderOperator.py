@@ -2,6 +2,7 @@ import sys
 import bpy
 import time
 import os
+from mathutils import Vector
 
 moduleParentName = '.'.join(__name__.split('.')[:-1])
 modulesNames = ['Constants', 'ExtruderErrorCreator', 'Exceptions',
@@ -18,6 +19,24 @@ GCodeReader = sys.modules[modulesFullNames['GCodeReader']]
 
 propsNonAnimatable = ['WidthOffset', 'HeightOffset', 'Precision', ('Seam Abberations', (
     'SeamAbberation_Amount', 'Amount'), ('SeamAbberation_Probability', 'Probability')), ]
+
+
+def appendIfLongEnough(coords, newElem):
+
+    if (len(coords) == 0):
+        coords.append({"point": (newElem['X'], newElem['Y'], newElem['Z']),
+                       "width": newElem['W'],
+                       "height": newElem['H']})
+    else:
+        lastCoord = coords[-1]
+        lastPoint = Vector(lastCoord["point"])
+        newPoint = Vector((newElem['X'], newElem['Y'], newElem['Z']))
+        distance = (lastPoint - newPoint).length
+
+        if (True):
+            coords.append({"point": (newElem['X'], newElem['Y'], newElem['Z']),
+                           "width": newElem['W'],
+                           "height": newElem['H']})
 
 
 class GCodeLoaderOperator(bpy.types.Operator):
@@ -75,9 +94,8 @@ class GCodeLoaderOperator(bpy.types.Operator):
             for elem in currentLayer.gcodes:
                 if (elem["E"] > 0):
                     if (elem['type'] == prevType):
-                        coords.append({"point": (elem['X'], elem['Y'], elem['Z']),
-                                       "width": elem['W'],
-                                       "height": elem['H']})
+
+                        appendIfLongEnough(coords, elem)
                     else:
                         curvesToPlace.append({"coords": coords,
                                               "type": prevType})
@@ -85,9 +103,7 @@ class GCodeLoaderOperator(bpy.types.Operator):
                         prevType = elem['type']
 
                         coords = coords[-1:]
-                        coords.append({"point": (elem['X'], elem['Y'], elem['Z']),
-                                       "width": elem['W'],
-                                       "height": elem['H']})
+                        appendIfLongEnough(coords, elem)
 
                 else:
                     curvesToPlace.append({"coords": coords,
