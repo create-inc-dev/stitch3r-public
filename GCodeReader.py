@@ -349,12 +349,12 @@ def createCirclePointsFromDiameter(rightPoint, leftPoint, numberOfPoints, counte
 
 
 # sliceHeight is the fraction between middle of the line and the top. Between -1 to 1
-def offsetFunction(lineWidth, layerHeight, sliceHeight):
+def offsetFunction(lineWidth, layerHeight, sliceHeight, roundness=0.5):
     halfLineWidth = lineWidth/2
     halfLayerHeight = layerHeight/2
 
     return halfLineWidth - halfLayerHeight * \
-        math.sin(abs(sliceHeight) * math.pi/2)
+        (1 - math.sin(abs(1 - sliceHeight) * math.pi/2)) * roundness
 
 
 # jointResolution is the angle after which to place a new point on a joint
@@ -487,6 +487,68 @@ def getOffsetCurvesForSegment(coords, sliceHeight=0, jointResolution=36 * math.p
     return {"right": rightOffsetPoints, "left": leftOffsetPoints, "start": startCap, "end": endCap}
 
 
+def createTerminalSliceMesh(slice, bm, isTop=False):
+    bottomSliceStartCapCenter = (
+        slice["left"][0][0].co + slice["right"][0][0].co) / 2
+    bottomSliceStartCapCenter = bm.verts.new(bottomSliceStartCapCenter)
+
+    for i in range(len(slice["start"]) - 1):
+        thisVertex = slice["start"][i]
+        nextVertex = slice["start"][i + 1]
+
+        face = bm.faces.new(
+            [nextVertex, bottomSliceStartCapCenter, thisVertex])
+
+        if isTop:
+            face.normal_flip()
+
+    for i in range(len(slice["left"]) - 1):
+        leftStart = slice["left"][i][-1]
+        rightStart = slice["right"][i][-1]
+
+        leftEnd = slice["left"][i+1][0]
+        rightEnd = slice["right"][i+1][0]
+
+        face = bm.faces.new([rightStart, leftStart, leftEnd, rightEnd])
+        if isTop:
+            face.normal_flip()
+
+        if len(slice["left"][i+1]) > 1:
+            commonVertex = slice["right"][i+1][0]
+
+            for j in range(len(slice["left"][i+1]) - 1):
+                vert = slice["left"][i+1][j]
+                nextVert = slice["left"][i+1][j + 1]
+
+                face = bm.faces.new([nextVert, commonVertex, vert])
+                if isTop:
+                    face.normal_flip()
+
+        if len(slice["right"][i+1]) > 1:
+            commonVertex = slice["left"][i+1][0]
+
+            for j in range(len(slice["right"][i+1]) - 1):
+                vert = slice["right"][i+1][j]
+                nextVert = slice["right"][i+1][j + 1]
+
+                face = bm.faces.new([commonVertex, nextVert, vert])
+                if isTop:
+                    face.normal_flip()
+
+    bottomSliceStartEndCenter = (
+        slice["left"][-1][0].co + slice["right"][-1][0].co) / 2
+    bottomSliceStartEndCenter = bm.verts.new(bottomSliceStartEndCenter)
+
+    for i in range(len(slice["end"]) - 1):
+        thisVertex = slice["end"][i]
+        nextVertex = slice["end"][i + 1]
+
+        face = bm.faces.new(
+            [thisVertex, bottomSliceStartEndCenter, nextVertex])
+        if isTop:
+            face.normal_flip()
+
+
 def placeSegmentAsMesh(segment, numberOfSlices, zPos, layerNumber, bm, params):
     if numberOfSlices % 2 == 0:
         raise Exception("number of slices must always be an odd number")
@@ -510,56 +572,66 @@ def placeSegmentAsMesh(segment, numberOfSlices, zPos, layerNumber, bm, params):
         slices.append({"left": leftOffset, "right": rightOffset,
                       "start": startCap, "end": endCap})
 
-    # bottomSliceStartCap
+    createTerminalSliceMesh(slices[0], bm)
+    createTerminalSliceMesh(slices[-1], bm, True)
 
-    bottomSliceStartCapCenter = (
-        slices[0]["left"][0][0].co + slices[0]["right"][0][0].co) / 2
-    bottomSliceStartCapCenter = bm.verts.new(bottomSliceStartCapCenter)
+    for i in range(len(slices) - 1):
+        slice = slices[i]
+        nextSlice = slices[i + 1]
 
-    for i in range(len(slices[0]["start"]) - 1):
-        thisVertex = slices[0]["start"][i]
-        nextVertex = slices[0]["start"][i + 1]
+        sliceLeft = [point for group in slice["left"] for point in group]
+        nextSliceLeft = [point for group in nextSlice["left"]
+                         for point in group]
 
-        bm.faces.new([nextVertex, bottomSliceStartCapCenter, thisVertex])
+        for j in range(len(sliceLeft) - 1):
+            bottomVertex1 = sliceLeft[j]
+            bottomVertex2 = sliceLeft[j + 1]
 
-    # bottom slice
+            topVertex1 = nextSliceLeft[j]
+            topVertex2 = nextSliceLeft[j + 1]
 
-    for i in range(len(slices[0]["left"]) - 1):
-        leftStart = slices[0]["left"][i][-1]
-        rightStart = slices[0]["right"][i][-1]
+            bm.faces.new([bottomVertex1, topVertex1,
+                          topVertex2, bottomVertex2])
 
-        leftEnd = slices[0]["left"][i+1][0]
-        rightEnd = slices[0]["right"][i+1][0]
+        sliceRight = [point for group in slice["right"] for point in group]
+        nextSliceRight = [point for group in nextSlice["right"]
+                          for point in group]
 
-        bm.faces.new([rightStart, rightEnd, leftEnd, leftStart])
+        for j in range(len(sliceRight) - 1):
+            bottomVertex1 = sliceRight[j]
+            bottomVertex2 = sliceRight[j + 1]
 
-        if len(slices[0]["left"][i+1]) > 1:
-            commonVertex = slices[0]["right"][i+1][0]
+            topVertex1 = nextSliceRight[j]
+            topVertex2 = nextSliceRight[j + 1]
 
-            for j in range(len(slices[0]["left"][i+1]) - 1):
-                vert = slices[0]["left"][i+1][j]
-                nextVert = slices[0]["left"][i+1][j + 1]
+            bm.faces.new([bottomVertex1, bottomVertex2,
+                          topVertex2, topVertex1])
 
-                bm.faces.new([commonVertex, nextVert, vert])
+        sliceStart = slice["start"]
+        nextSliceStart = nextSlice["start"]
 
-        if len(slices[0]["right"][i+1]) > 1:
-            commonVertex = slices[0]["left"][i+1][0]
+        for j in range(len(sliceStart) - 1):
+            bottomVertex1 = sliceStart[j]
+            bottomVertex2 = sliceStart[j + 1]
 
-            for j in range(len(slices[0]["right"][i+1]) - 1):
-                vert = slices[0]["right"][i+1][j]
-                nextVert = slices[0]["right"][i+1][j + 1]
+            topVertex1 = nextSliceStart[j]
+            topVertex2 = nextSliceStart[j + 1]
 
-                bm.faces.new([commonVertex, nextVert, vert])
+            bm.faces.new([bottomVertex1, topVertex1,
+                          topVertex2, bottomVertex2])
 
-    bottomSliceStartEndCenter = (
-        slices[0]["left"][-1][0].co + slices[0]["right"][-1][0].co) / 2
-    bottomSliceStartEndCenter = bm.verts.new(bottomSliceStartEndCenter)
+        sliceEnd = slice["end"]
+        nextSliceEnd = nextSlice["end"]
 
-    for i in range(len(slices[0]["end"]) - 1):
-        thisVertex = slices[0]["end"][i]
-        nextVertex = slices[0]["end"][i + 1]
+        for j in range(len(sliceEnd) - 1):
+            bottomVertex1 = sliceEnd[j]
+            bottomVertex2 = sliceEnd[j + 1]
 
-        bm.faces.new([nextVertex, bottomSliceStartEndCenter, thisVertex])
+            topVertex1 = nextSliceEnd[j]
+            topVertex2 = nextSliceEnd[j + 1]
+
+            bm.faces.new([bottomVertex1, bottomVertex2,
+                          topVertex2, topVertex1])
 
 
 def placeSegmentAsCurve(segment, numberOfSlices, zPos, layerNumber, bm, params):
@@ -625,10 +697,10 @@ def placeLayer(curves, zPos, layerNumber, collection, params):
 
     lengthOfCurve = 0
 
-    mainCurveData = bpy.data.curves.new('myCurve', type='CURVE')
-    mainCurveData.dimensions = '3D'
-    mainCurveData.resolution_u = 1
-    mainCurveData.render_resolution_u = 12
+    # mainCurveData = bpy.data.curves.new('myCurve', type='CURVE')
+    # mainCurveData.dimensions = '3D'
+    # mainCurveData.resolution_u = 1
+    # mainCurveData.render_resolution_u = 12
 
     meshData = bpy.data.meshes.new('myMesh')
     bm = bmesh.new()
@@ -655,8 +727,8 @@ def placeLayer(curves, zPos, layerNumber, collection, params):
     meshOB = bpy.data.objects.new(
         f'Layer_Main_{layerNumber}', meshData)
 
-    curveOB = bpy.data.objects.new(
-        f'Layer_Main_{layerNumber}', mainCurveData)
+    # curveOB = bpy.data.objects.new(
+    #     f'Layer_Main_{layerNumber}', mainCurveData)
 
     # Properties for debugging and other uses
     meshOB.data["zPos"] = zPos
@@ -671,7 +743,7 @@ def placeLayer(curves, zPos, layerNumber, collection, params):
     meshOB["layerNumber"] = layerNumber
 
     collection.objects.link(meshOB)
-    collection.objects.link(curveOB)
+    # collection.objects.link(curveOB)
 
     return meshOB
 
