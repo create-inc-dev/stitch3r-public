@@ -15,10 +15,9 @@ for currentModuleName in modulesNames:
 
 ParamNames = sys.modules[modulesFullNames['Constants']].ParamNames
 Keywords = sys.modules[modulesFullNames['Constants']].Keywords
+propsNonAnimatable = sys.modules[modulesFullNames['Constants']
+                                 ].propsNonAnimatable
 GCodeReader = sys.modules[modulesFullNames['GCodeReader']]
-
-propsNonAnimatable = ['WidthOffset', 'HeightOffset', 'Precision', ('Seam Abberations', (
-    'SeamAbberation_Amount', 'Amount'), ('SeamAbberation_Probability', 'Probability')), ]
 
 
 def appendIfLongEnough(coords, newElem):
@@ -87,37 +86,46 @@ class GCodeLoaderOperator(bpy.types.Operator):
             prevWidth = 0
             prevType = "Custom"
             prevHeight = 0
+            prevFilament = 0
             coords = []
 
             curvesToPlace = []
 
             for elem in currentLayer.gcodes:
                 if (elem["E"] > 0):
-                    if (elem['type'] == prevType):
+                    if (elem['type'] == prevType and elem['filament'] == prevFilament):
 
-                        appendIfLongEnough(coords, elem)
+                        coords.append({"point": (elem['X'], elem['Y'], elem['Z']),
+                                       "width": elem['W'],
+                                       "height": elem['H']})
                     else:
                         curvesToPlace.append({"coords": coords,
-                                              "type": prevType})
+                                              "type": prevType,
+                                              "filament": prevFilament})
 
                         prevType = elem['type']
+                        prevFilament = elem['filament']
 
                         coords = coords[-1:]
-                        appendIfLongEnough(coords, elem)
+                        coords.append({"point": (elem['X'], elem['Y'], elem['Z']),
+                                       "width": elem['W'],
+                                       "height": elem['H']})
 
                 else:
                     curvesToPlace.append({"coords": coords,
-                                          "type": prevType})
+                                          "type": prevType,
+                                          "filament": prevFilament})
 
                     coords = [{"point": (elem['X'], elem['Y'], elem['Z']),
                                "width": None,
                                "height": None}]
 
             curvesToPlace.append({"coords": coords,
-                                  "type": prevType})
+                                  "type": prevType,
+                                  "filament": prevFilament})
 
             GCodeReader.placeLayer(curvesToPlace, currentLayer.zPos,
-                                   currentLayer.layerNumber, self.parentCollection, self.params)
+                                   currentLayer.layerNumber, self.parentCollection, self.coin, self.params)
 
             bpy.context.scene.Stitcher_Props.Status = "Layer Done: {}/{}".format(
                 currentLayer.layerNumber, self.numberOfLayers)
@@ -144,12 +152,10 @@ class GCodeLoaderOperator(bpy.types.Operator):
                         bpy.context.scene.Stitcher_Props, prop[0])
 
         params[ParamNames.seed] = 237
-        params[ParamNames.whPrecision] = 2
 
         filepath = os.path.join(os.path.dirname(
             os.path.abspath(__file__)), "assets.blend")
         with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
-            data_to.materials = [Keywords.materialName]
             data_to.node_groups = [Keywords.geoNodesName]
 
         self.fileName = fileName

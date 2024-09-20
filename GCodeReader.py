@@ -1,4 +1,5 @@
 from ast import Param
+from random import Random
 import bpy
 import sys
 import math
@@ -26,6 +27,8 @@ ImproperCruveException = sys.modules[moduleParentName +
 ParamNames = sys.modules[moduleParentName + '.Constants'].ParamNames
 Coin = sys.modules[moduleParentName + '.Constants'].BiasedCoin
 Keywords = sys.modules[moduleParentName + '.Constants'].Keywords
+getFilamentName = sys.modules[moduleParentName + '.Constants'].getFilamentName
+Patterns = sys.modules[moduleParentName + '.Constants'].Patterns
 
 
 class Layer:  # Class that stores information about the layer. Needs to change because there are different widths in the same layer as well
@@ -50,19 +53,17 @@ def gcodeParser(gcodeFilePath, params):
     listOfParsedLayers = []
 
     # Pattern that matches G0 or G1 commands. To be noted, I don't see any G0 commansd in Prusa Slicer.
-    gcodePattern = re.compile(
-        "(\s*G[01](?:\s+[XYZEF](?:[-+]?(?:\d*\.\d+|\d+)))+\s*)(?:;(.*))?$")
+    gcodePattern = Patterns.gcodePattern
     # Matches the G0 or G1 commands that have no X,Y or Z components, thereby are not travel moves.
-    nonMovingGcodePattern = re.compile(
-        "\s*G[01](\s+[EF](?:[-+]?(?:\d*\.\d+|\d+)))+\s*$")
+    nonMovingGcodePattern = Patterns.nonMovingGcodePattern
     # Detecting Layer change, I think this makes things incompatible with vase mode.
-    layerChangePattern = re.compile("\s*;LAYER_CHANGE\s*")
+    layerChangePattern = Patterns.printerSpecificPatterns['orca']['layerChangePattern']
     # Detecting a change in the width of print line
-    widthPattern = re.compile("\s*;WIDTH:([0-9]+(?:\.[0-9]+)?)\s*$")
-    zPosPattern = re.compile("\s*;Z:([0-9]+(?:\.[0-9]+)?)\s*$")
-    heightPattern = re.compile("\s*;HEIGHT:([0-9]+(?:\.[0-9]+)?)\s*$")
-    typePattern = re.compile("\s*;TYPE:(.*)$")
-    firstPointPattern = re.compile("move to first")
+    widthPattern = Patterns.printerSpecificPatterns['orca']['widthPattern']
+    zPosPattern = Patterns.printerSpecificPatterns['orca']['zPosPattern']
+    heightPattern = Patterns.printerSpecificPatterns['orca']['heightPattern']
+    typePattern = Patterns.printerSpecificPatterns['orca']['typePattern']
+    filamentChangePattern = Patterns.filamentChangePattern
 
     prevLayerGcodes = []  # All GCodes that move the nozzle, with our without extrusion would be stored here and then popped when the next later starts
     # Prusa Slicer Prints the Z position and layer height after each layer change
@@ -73,9 +74,8 @@ def gcodeParser(gcodeFilePath, params):
 
     # E is extrusion; X, Y and Z are the coordinates; W is width of the  print line
     valueTacker = {'X': 0, 'Y': 0, 'Z': 0, 'E': 0, 'W': 0.5,
-                   'H': 0.2, 'layerNumber': 0, 'type': 'Custom'}
+                   'H': 0.2, 'layerNumber': 0, 'type': 'Custom', 'filament': 0}
 
-    whPrecision = params[ParamNames.whPrecision]
     precision = params[ParamNames.precision]
 
     while True:
@@ -126,8 +126,7 @@ def gcodeParser(gcodeFilePath, params):
             try:
                 line = next(linesIterator)
                 curLineNumber = curLineNumber + 1
-                height = round(
-                    float(heightPattern.search(line)[1]), whPrecision)
+                height = float(heightPattern.search(line)[1])
                 valueTacker['H'] = height
 
             except (IndexError, TypeError):
@@ -143,16 +142,18 @@ def gcodeParser(gcodeFilePath, params):
             curLayerNumber = curLayerNumber + 1
 
         elif bool(heightPattern.match(line)):
-            valueTacker['H'] = round(
-                float(heightPattern.search(line)[1]), whPrecision)
+            valueTacker['H'] = float(heightPattern.search(line)[1])
 
         elif bool(widthPattern.match(line)):
-            valueTacker['W'] = round(
-                float(widthPattern.search(line)[1]), whPrecision)
+            valueTacker['W'] = float(widthPattern.search(line)[1])
 
         elif bool(typePattern.match(line)):
             curveType = typePattern.search(line)[1].strip()
             valueTacker['type'] = re.sub(" |/", "_", curveType)
+
+        elif bool(filamentChangePattern.match(line)):
+            filamentNumber = int(filamentChangePattern.search(line)[1].strip())
+            valueTacker['filament'] = filamentNumber
 
         elif line == "!__end__!":
             prevLayer = Layer(prevLayerZPos, prevLayerHeight,
@@ -167,10 +168,6 @@ def gcodeParser(gcodeFilePath, params):
 
 
 def addVisibilityDriver(curveOB, drivenProperty="hide_viewport"):
-    try:
-        curveType = curveOB["type"]
-    except KeyError:
-        raise ImproperCruveException(curveOB)
 
     driver = curveOB.driver_add(drivenProperty).driver
     var0 = driver.variables.new()
@@ -180,45 +177,13 @@ def addVisibilityDriver(curveOB, drivenProperty="hide_viewport"):
     var0.targets[0].data_path = "Stitcher_Props.LayerIndexTop"
 
     var1 = driver.variables.new()
-    var1.name = "var1"
-    var1.targets[0].id_type = 'SCENE'
-    var1.targets[0].id = bpy.context.scene
+    var1.name = "var2"
+    var1.targets[0].id = curveOB
+    var1.targets[0].data_path = '["layerNumber"]'
 
-    filter_index = bpy.context.scene.Stitcher_Props.TypesFiltersDict[curveType]
-    var1.targets[0].data_path = "Stitcher_Props.TypesFiltersMap[{" + \
-        filter_index + "}].value"
+    condition2 = "({0} <= {1})".format(var1.name, var0.name)
 
-    var2 = driver.variables.new()
-    var2.name = "var2"
-    var2.targets[0].id = curveOB
-    var2.targets[0].data_path = '["layerNumber"]'
-
-    condition1 = var1.name  # is the curve type checked in the visibility tab
-    # is the layer supposed to be visible i.e. layer number <= layer top index
-    condition2 = "({0} <= {1})".format(var2.name, var0.name)
-    condition3 = "True"  # is the parent visible
-
-    if (drivenProperty == "hide_render"):
-        var4 = driver.variables.new()
-        var4.name = "var4"
-        var4.targets[0].id_type = 'SCENE'
-        var4.targets[0].id = bpy.context.scene
-        var4.targets[0].data_path = "Stitcher_Props.ViewportOnly"
-
-        condition1 = "({0} or {1})".format(var1.name, var4.name)
-
-    # The rounded starting and end points would have a parent parameter that points to the curve they are placed on.
-    # It's import to tie their visbility to their parent
-    if ('parent' in curveOB.keys()):
-        var3 = driver.variables.new()
-        var3.name = "var3"
-        var3.targets[0].id = curveOB['parent']
-        var3.targets[0].data_path = drivenProperty
-
-        condition3 = "not (" + var3.name + ")"
-
-    driver.expression = "not ({0} and {1} and {2})".format(
-        condition1, condition2, condition3)
+    driver.expression = "not ({0})".format(condition2)
 
 
 # Apply modifier to smooth out overlap artefacts, only shows in renders
@@ -227,7 +192,76 @@ def addEnhancingModifiers(curveOB):
     curveOB.modifiers.get('split').show_viewport = False
 
 
-def getSegments(coords, mergeAngle=(180 - 3) * math.pi/180):
+def removeSeamDistance(coords, coin, params):
+    seamDistance = params[ParamNames.seamDistance]
+
+    headProb = params[ParamNames.seamAbberations][ParamNames.probability]
+    abbAmount = params[ParamNames.seamAbberations][ParamNames.amount]
+
+    if (coin.toss(headProb)):
+        startingSeam = (seamDistance + coin.uniform(0, abbAmount))/2
+    else:
+        startingSeam = seamDistance/2
+
+    if (coin.toss(headProb)):
+        endingSeam = (seamDistance + coin.uniform(0, abbAmount))/2
+    else:
+        endingSeam = seamDistance/2
+
+    try:
+        lengthSoFar = 0
+        prevCoord = coords.pop(0)
+
+        while len(coords) > 0:
+            coord = coords[0]
+
+            point = Vector(coord["point"])
+            prevPoint = Vector(prevCoord["point"])
+
+            if (point - prevPoint).length + lengthSoFar > startingSeam:
+                unitVector = (point - prevPoint).normalized()
+                newStartingPoint = prevPoint + startingSeam * unitVector
+                newCoord = {'point': newStartingPoint,
+                            'width': coord['width'],
+                            'height': coord['height']}
+
+                coords.insert(0, newCoord)
+                break
+            else:
+                prevCoord = coords.pop(0)
+                lengthSoFar += (point - prevPoint).length
+
+        lengthSoFar = 0
+        prevCoord = coords.pop()
+
+        while len(coords) > 0:
+            coord = coords[-1]
+
+            point = Vector(coord["point"])
+            prevPoint = Vector(prevCoord["point"])
+
+            if (point - prevPoint).length + lengthSoFar > endingSeam:
+                unitVector = (point - prevPoint).normalized()
+                newEndingPoint = prevPoint + endingSeam * unitVector
+                newCoord = {'point': newEndingPoint,
+                            'width': coord['width'],
+                            'height': coord['height']}
+
+                coords.append(newCoord)
+                break
+            else:
+                prevCoord = coords.pop()
+                lengthSoFar += (point - prevPoint).length
+    except IndexError:
+        coords = []
+
+    return coords
+
+
+def getSegments(coords, coin, params):
+
+    mergeAngle = (180 - params[ParamNames.mergeAngle]) * math.pi/180
+
     newCoords = []
     coordinateBuffer = []
 
@@ -262,6 +296,7 @@ def getSegments(coords, mergeAngle=(180 - 3) * math.pi/180):
 
         i += 1
 
+    newCoords = removeSeamDistance(newCoords, coin, params)
     i = 0
     while i < len(newCoords):
         coordinateBuffer.append(newCoords[i])
@@ -358,7 +393,9 @@ def offsetFunction(lineWidth, layerHeight, sliceHeight, roundness=0.5):
 
 
 # jointResolution is the angle after which to place a new point on a joint
-def getOffsetCurvesForSegment(coords, sliceHeight=0, jointResolution=36 * math.pi / 180):
+def getOffsetCurvesForSegment(coords, sliceHeight=0, jointResolution=9 * math.pi / 180):
+    randomHeightOffset = 0  # Random().uniform(0, 0.001)
+
     rightOffsetPoints = []
     leftOffsetPoints = []
 
@@ -381,14 +418,17 @@ def getOffsetCurvesForSegment(coords, sliceHeight=0, jointResolution=36 * math.p
             point1, point2, point3 = (
                 Vector(coord1["point"]), Vector(coord2["point"]), Vector(coord3["point"]))
 
-            point1.z = point1.z - zDeduction(coord2["height"])
-            point2.z = point2.z - zDeduction(coord2["height"])
-            point3.z = point3.z - zDeduction(coord3["height"])
+            point1.z = point1.z - \
+                zDeduction(coord2["height"] + randomHeightOffset)
+            point2.z = point2.z - \
+                zDeduction(coord2["height"] + randomHeightOffset)
+            point3.z = point3.z - \
+                zDeduction(coord3["height"] + randomHeightOffset)
 
             firstOffset = offsetFunction(
-                coord2["width"], coord2["height"], sliceHeight)
+                coord2["width"] + randomHeightOffset, coord2["height"] + randomHeightOffset, sliceHeight)
             secondOffset = offsetFunction(
-                coord3["width"], coord3["height"], sliceHeight)
+                coord3["width"] + randomHeightOffset, coord3["height"] + randomHeightOffset, sliceHeight)
 
             firstVector = (point2 - point1).normalized()
             secondVector = (point3 - point2).normalized()
@@ -463,11 +503,11 @@ def getOffsetCurvesForSegment(coords, sliceHeight=0, jointResolution=36 * math.p
         coord1, coord2 = (coordinateBuffer[0], coordinateBuffer[1])
         point1, point2 = (Vector(coord1["point"]), Vector(coord2["point"]))
 
-        point1.z = point1.z - zDeduction(coord2["height"])
-        point2.z = point2.z - zDeduction(coord2["height"])
+        point1.z = point1.z - zDeduction(coord2["height"] + randomHeightOffset)
+        point2.z = point2.z - zDeduction(coord2["height"] + randomHeightOffset)
 
         firstOffset = offsetFunction(
-            coord2["width"], coord2["height"], sliceHeight)
+            coord2["width"] + randomHeightOffset, coord2["height"] + randomHeightOffset, sliceHeight)
         firstVector = (point2 - point1).normalized()
 
         firstNormal = firstVector.cross(zAxisVector).normalized()
@@ -487,7 +527,7 @@ def getOffsetCurvesForSegment(coords, sliceHeight=0, jointResolution=36 * math.p
     return {"right": rightOffsetPoints, "left": leftOffsetPoints, "start": startCap, "end": endCap}
 
 
-def createTerminalSliceMesh(slice, bm, isTop=False):
+def createTerminalSliceMesh(slice, bm, filamentNumber, isTop=False):
     bottomSliceStartCapCenter = (
         slice["left"][0][0].co + slice["right"][0][0].co) / 2
     bottomSliceStartCapCenter = bm.verts.new(bottomSliceStartCapCenter)
@@ -498,6 +538,8 @@ def createTerminalSliceMesh(slice, bm, isTop=False):
 
         face = bm.faces.new(
             [nextVertex, bottomSliceStartCapCenter, thisVertex])
+
+        face.material_index = filamentNumber
 
         if isTop:
             face.normal_flip()
@@ -510,6 +552,7 @@ def createTerminalSliceMesh(slice, bm, isTop=False):
         rightEnd = slice["right"][i+1][0]
 
         face = bm.faces.new([rightStart, leftStart, leftEnd, rightEnd])
+        face.material_index = filamentNumber
         if isTop:
             face.normal_flip()
 
@@ -521,6 +564,7 @@ def createTerminalSliceMesh(slice, bm, isTop=False):
                 nextVert = slice["left"][i+1][j + 1]
 
                 face = bm.faces.new([nextVert, commonVertex, vert])
+                face.material_index = filamentNumber
                 if isTop:
                     face.normal_flip()
 
@@ -532,6 +576,7 @@ def createTerminalSliceMesh(slice, bm, isTop=False):
                 nextVert = slice["right"][i+1][j + 1]
 
                 face = bm.faces.new([commonVertex, nextVert, vert])
+                face.material_index = filamentNumber
                 if isTop:
                     face.normal_flip()
 
@@ -545,20 +590,24 @@ def createTerminalSliceMesh(slice, bm, isTop=False):
 
         face = bm.faces.new(
             [thisVertex, bottomSliceStartEndCenter, nextVertex])
+        face.material_index = filamentNumber
         if isTop:
             face.normal_flip()
 
 
-def placeSegmentAsMesh(segment, numberOfSlices, zPos, layerNumber, bm, params):
+def placeSegmentAsMesh(segment, numberOfSlices,  filamentNumber,  bm, params):
     if numberOfSlices % 2 == 0:
         raise Exception("number of slices must always be an odd number")
 
     halfSlice = int(numberOfSlices/2)
     slices = []
 
+    jointResolution = params[ParamNames.degreesPerJointPoint] * math.pi / 180
+
     for i in range(numberOfSlices):
         sliceFraction = (i - halfSlice)/halfSlice
-        offsets = getOffsetCurvesForSegment(segment, sliceFraction)
+        offsets = getOffsetCurvesForSegment(
+            segment, sliceFraction, jointResolution)
 
         leftOffset = [[bm.verts.new((point.x, point.y, point.z))
                        for point in group] for group in offsets["left"]]
@@ -572,8 +621,8 @@ def placeSegmentAsMesh(segment, numberOfSlices, zPos, layerNumber, bm, params):
         slices.append({"left": leftOffset, "right": rightOffset,
                       "start": startCap, "end": endCap})
 
-    createTerminalSliceMesh(slices[0], bm)
-    createTerminalSliceMesh(slices[-1], bm, True)
+    createTerminalSliceMesh(slices[0], bm, filamentNumber)
+    createTerminalSliceMesh(slices[-1], bm, filamentNumber, True)
 
     for i in range(len(slices) - 1):
         slice = slices[i]
@@ -590,8 +639,9 @@ def placeSegmentAsMesh(segment, numberOfSlices, zPos, layerNumber, bm, params):
             topVertex1 = nextSliceLeft[j]
             topVertex2 = nextSliceLeft[j + 1]
 
-            bm.faces.new([bottomVertex1, topVertex1,
-                          topVertex2, bottomVertex2])
+            face = bm.faces.new([bottomVertex1, topVertex1,
+                                 topVertex2, bottomVertex2])
+            face.material_index = filamentNumber
 
         sliceRight = [point for group in slice["right"] for point in group]
         nextSliceRight = [point for group in nextSlice["right"]
@@ -604,8 +654,9 @@ def placeSegmentAsMesh(segment, numberOfSlices, zPos, layerNumber, bm, params):
             topVertex1 = nextSliceRight[j]
             topVertex2 = nextSliceRight[j + 1]
 
-            bm.faces.new([bottomVertex1, bottomVertex2,
-                          topVertex2, topVertex1])
+            face = bm.faces.new([bottomVertex1, bottomVertex2,
+                                 topVertex2, topVertex1])
+            face.material_index = filamentNumber
 
         sliceStart = slice["start"]
         nextSliceStart = nextSlice["start"]
@@ -617,8 +668,9 @@ def placeSegmentAsMesh(segment, numberOfSlices, zPos, layerNumber, bm, params):
             topVertex1 = nextSliceStart[j]
             topVertex2 = nextSliceStart[j + 1]
 
-            bm.faces.new([bottomVertex1, topVertex1,
-                          topVertex2, bottomVertex2])
+            face = bm.faces.new([bottomVertex1, topVertex1,
+                                 topVertex2, bottomVertex2])
+            face.material_index = filamentNumber
 
         sliceEnd = slice["end"]
         nextSliceEnd = nextSlice["end"]
@@ -630,8 +682,9 @@ def placeSegmentAsMesh(segment, numberOfSlices, zPos, layerNumber, bm, params):
             topVertex1 = nextSliceEnd[j]
             topVertex2 = nextSliceEnd[j + 1]
 
-            bm.faces.new([bottomVertex1, bottomVertex2,
-                          topVertex2, topVertex1])
+            face = bm.faces.new([bottomVertex1, bottomVertex2,
+                                 topVertex2, topVertex1])
+            face.material_index = filamentNumber
 
 
 def placeSegmentAsCurve(segment, numberOfSlices, zPos, layerNumber, bm, params):
@@ -690,12 +743,12 @@ def placeSegmentAsCurve(segment, numberOfSlices, zPos, layerNumber, bm, params):
     #     polyline.points[idx].co = (x, y, z, 1)
 
 
-def placeLayer(curves, zPos, layerNumber, collection, params):
+def placeLayer(curves, zPos, layerNumber, collection, coin, params):
     widthOffset = params[ParamNames.widthOffset]
     heightOffset = params[ParamNames.heightOffset]
-    whPrecision = params[ParamNames.whPrecision]
 
     lengthOfCurve = 0
+    materials = bpy.context.scene.Stitcher_Props.materials
 
     # mainCurveData = bpy.data.curves.new('myCurve', type='CURVE')
     # mainCurveData.dimensions = '3D'
@@ -706,7 +759,7 @@ def placeLayer(curves, zPos, layerNumber, collection, params):
     bm = bmesh.new()
     for curve in curves:
         coords = curve['coords']
-        segments = getSegments(coords)
+        filamentNumber = curve['filament']
 
         visibilityPropertyIndex = bpy.context.scene.Stitcher_Props.TypesFiltersDict[
             curve['type']]
@@ -714,10 +767,9 @@ def placeLayer(curves, zPos, layerNumber, collection, params):
             visibilityPropertyIndex].value
 
         if (len(coords) > 1 and isTypeVisible):
-
+            segments = getSegments(coords, coin, params)
             for segment in segments:
-                placeSegmentAsMesh(segment, 7, 0,
-                                   0, bm, params)
+                placeSegmentAsMesh(segment, 7, filamentNumber, bm, params)
                 # placeSegmentAsCurve(segment, 7, 0,
                 #                     0, mainCurveData, params)
 
@@ -727,6 +779,10 @@ def placeLayer(curves, zPos, layerNumber, collection, params):
     meshOB = bpy.data.objects.new(
         f'Layer_Main_{layerNumber}', meshData)
 
+    for material in materials:
+        mat = bpy.data.materials.get(material)
+        meshOB.data.materials.append(mat)
+
     # curveOB = bpy.data.objects.new(
     #     f'Layer_Main_{layerNumber}', mainCurveData)
 
@@ -735,7 +791,7 @@ def placeLayer(curves, zPos, layerNumber, collection, params):
     meshOB["zPos"] = zPos
 
     # curveOB.data["type"] = curveType
-    # curveOB["type"] = curveType
+    meshOB["type"] = Keywords.meshObject
 
     meshOB.data["lengthOfCurve"] = lengthOfCurve
 
@@ -743,101 +799,12 @@ def placeLayer(curves, zPos, layerNumber, collection, params):
     meshOB["layerNumber"] = layerNumber
 
     collection.objects.link(meshOB)
+
+    addVisibilityDriver(meshOB)
+    addVisibilityDriver(meshOB, "hide_render")
     # collection.objects.link(curveOB)
 
     return meshOB
-
-
-# Take the parsed GCode and finally make it into a curve that is beveled on blender
-def placeCurve(coords, width, height, zPos, curveType, layerNumber, bevelSuffix, collection, params):
-
-    widthOffset = params[ParamNames.widthOffset]
-    heightOffset = params[ParamNames.heightOffset]
-    whPrecision = params[ParamNames.whPrecision]
-
-    lengthOfCurve = 0
-
-    if (len(coords) > 1):
-
-        # Create new curve data and set it's properties
-        # Dimensions are set to 3D because setting it to 2D produces weird bugs and artefacts
-        curveData = bpy.data.curves.new('myCurve', type='CURVE')
-        curveData.dimensions = '3D'
-        curveData.resolution_u = 1
-        curveData.render_resolution_u = 12
-
-        # It's not a polyline curve, it's a bezier curve being edited to emulate a polyline curve.
-        # A polyline curve was giving uneven thickness when beveled
-        polyline = curveData.splines.new('BEZIER')
-
-        bevelObject = None
-        prevCoord = coords[0]
-
-        x, y, z = prevCoord
-        polyline.bezier_points[0].co = (x, y, z)
-        polyline.bezier_points[0].handle_left = (x, y, z)
-        polyline.bezier_points[0].handle_right = (x, y, z)
-
-        for i, coord in enumerate(coords[1:]):
-
-            distFromPreviousCoord = math.dist(prevCoord, coord)
-
-            if (distFromPreviousCoord > 0):
-                polyline.bezier_points.add(1)
-                lengthOfCurve = lengthOfCurve + distFromPreviousCoord
-                x, y, z = coord
-
-                polyline.bezier_points[-1].co = (x, y, z)
-                polyline.bezier_points[-1].handle_left = (x, y, z)
-                polyline.bezier_points[-1].handle_right = (x, y, z)
-
-                prevCoord = coord
-
-        if lengthOfCurve == 0:
-            return None
-
-        curveOB = bpy.data.objects.new('myCurve', curveData)
-
-        # Properties for debugging and other uses
-        curveOB.data["zPos"] = zPos
-        curveOB["zPos"] = zPos
-
-        curveOB.data["type"] = curveType
-        curveOB["type"] = curveType
-
-        curveOB.data["lengthOfCurve"] = lengthOfCurve
-
-        curveOB.data["layerNumber"] = layerNumber
-        curveOB["layerNumber"] = layerNumber
-        curveOB.hide_viewport = True
-
-        bevelName = ("{:."+str(whPrecision)+"f}").format(width + widthOffset) + "_" + (
-            "{:."+str(whPrecision)+"f}").format(height + heightOffset) + "_" + bevelSuffix
-
-        if bevelName in bpy.data.objects.keys():
-            bevelObject = bpy.data.objects.get(bevelName)
-        else:
-            createProfile(width+widthOffset, height+heightOffset, 1, bevelName)
-            bevelObject = bpy.data.objects.get(bevelName)
-
-        curveData.bevel_mode = "OBJECT"
-        curveData.bevel_object = bpy.data.objects.get(bevelName)
-        curveData.use_fill_caps = True
-
-        # Material was already imported from assets.blend file when the "Load GCode" button was pressed
-        mat = bpy.data.materials.get(Keywords.materialName)
-        if (len(curveOB.data.materials) == 0):
-            curveOB.data.materials.append(mat)
-
-        addEnhancingModifiers(curveOB)
-
-        # Change bevel mapping - this would be used for rounding the end points of the curve
-        curveOB.data.bevel_factor_mapping_start = 'SPLINE'
-        curveOB.data.bevel_factor_mapping_end = 'SPLINE'
-
-        collection.objects.link(curveOB)
-
-        return curveOB
 
 
 def builder(gcodeFilePath, objectName="OBJECT", bevelSuffix="bevel", params={}):
