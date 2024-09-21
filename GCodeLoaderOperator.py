@@ -91,13 +91,16 @@ class GCodeLoaderOperator(bpy.types.Operator):
 
             curvesToPlace = []
 
+            widthOffset = self.params[ParamNames.widthOffset]
+            heightOffset = self.params[ParamNames.heightOffset]
+
             for elem in currentLayer.gcodes:
                 if (elem["E"] > 0):
                     if (elem['type'] == prevType and elem['filament'] == prevFilament):
 
                         coords.append({"point": (elem['X'], elem['Y'], elem['Z']),
-                                       "width": elem['W'],
-                                       "height": elem['H']})
+                                       "width": elem['W'] + widthOffset,
+                                       "height": elem['H'] + heightOffset})
                     else:
                         curvesToPlace.append({"coords": coords,
                                               "type": prevType,
@@ -108,8 +111,8 @@ class GCodeLoaderOperator(bpy.types.Operator):
 
                         coords = coords[-1:]
                         coords.append({"point": (elem['X'], elem['Y'], elem['Z']),
-                                       "width": elem['W'],
-                                       "height": elem['H']})
+                                       "width": elem['W'] + widthOffset,
+                                       "height": elem['H'] + heightOffset})
 
                 else:
                     curvesToPlace.append({"coords": coords,
@@ -163,7 +166,7 @@ class GCodeLoaderOperator(bpy.types.Operator):
         self.state = 0
         self.i = 0
         self.listOfParsedLayers = GCodeReader.gcodeParser(
-            self.fileName, self.params)
+            self.fileName, self.params)[2:3]
 
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}

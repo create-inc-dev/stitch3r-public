@@ -297,6 +297,10 @@ def getSegments(coords, coin, params):
         i += 1
 
     newCoords = removeSeamDistance(newCoords, coin, params)
+
+    if (len(newCoords) == 2):
+        return [newCoords]
+
     i = 0
     while i < len(newCoords):
         coordinateBuffer.append(newCoords[i])
@@ -394,7 +398,7 @@ def offsetFunction(lineWidth, layerHeight, sliceHeight, roundness=0.5):
 
 # jointResolution is the angle after which to place a new point on a joint
 def getOffsetCurvesForSegment(coords, sliceHeight=0, jointResolution=9 * math.pi / 180):
-    randomHeightOffset = 0  # Random().uniform(0, 0.001)
+    randomHeightOffset = Random().uniform(0, 0.001)
 
     rightOffsetPoints = []
     leftOffsetPoints = []
@@ -418,12 +422,12 @@ def getOffsetCurvesForSegment(coords, sliceHeight=0, jointResolution=9 * math.pi
             point1, point2, point3 = (
                 Vector(coord1["point"]), Vector(coord2["point"]), Vector(coord3["point"]))
 
-            point1.z = point1.z - \
-                zDeduction(coord2["height"] + randomHeightOffset)
-            point2.z = point2.z - \
-                zDeduction(coord2["height"] + randomHeightOffset)
-            point3.z = point3.z - \
-                zDeduction(coord3["height"] + randomHeightOffset)
+            point1.z = point1.z + randomHeightOffset - \
+                zDeduction(coord2["height"])
+            point2.z = point2.z + randomHeightOffset - \
+                zDeduction(coord2["height"])
+            point3.z = point3.z + randomHeightOffset - \
+                zDeduction(coord3["height"])
 
             firstOffset = offsetFunction(
                 coord2["width"] + randomHeightOffset, coord2["height"] + randomHeightOffset, sliceHeight)
@@ -503,8 +507,8 @@ def getOffsetCurvesForSegment(coords, sliceHeight=0, jointResolution=9 * math.pi
         coord1, coord2 = (coordinateBuffer[0], coordinateBuffer[1])
         point1, point2 = (Vector(coord1["point"]), Vector(coord2["point"]))
 
-        point1.z = point1.z - zDeduction(coord2["height"] + randomHeightOffset)
-        point2.z = point2.z - zDeduction(coord2["height"] + randomHeightOffset)
+        point1.z = point1.z + randomHeightOffset - zDeduction(coord2["height"])
+        point2.z = point2.z + randomHeightOffset - zDeduction(coord2["height"])
 
         firstOffset = offsetFunction(
             coord2["width"] + randomHeightOffset, coord2["height"] + randomHeightOffset, sliceHeight)
@@ -735,28 +739,15 @@ def placeSegmentAsCurve(segment, numberOfSlices, zPos, layerNumber, bm, params):
             x, y, z = coord
             polyline.points[idx].co = (x, y, z, 1)
 
-    # polyline = mainCurveData.splines.new('POLY')
-    # polyline.points.add(len(segment) - 1)
-
-    # for idx, coord in enumerate(segment):
-    #     x, y, z = coord["point"]
-    #     polyline.points[idx].co = (x, y, z, 1)
-
 
 def placeLayer(curves, zPos, layerNumber, collection, coin, params):
-    widthOffset = params[ParamNames.widthOffset]
-    heightOffset = params[ParamNames.heightOffset]
 
     lengthOfCurve = 0
     materials = bpy.context.scene.Stitcher_Props.materials
 
-    # mainCurveData = bpy.data.curves.new('myCurve', type='CURVE')
-    # mainCurveData.dimensions = '3D'
-    # mainCurveData.resolution_u = 1
-    # mainCurveData.render_resolution_u = 12
-
     meshData = bpy.data.meshes.new('myMesh')
     bm = bmesh.new()
+
     for curve in curves:
         coords = curve['coords']
         filamentNumber = curve['filament']
@@ -771,6 +762,7 @@ def placeLayer(curves, zPos, layerNumber, collection, coin, params):
             for segment in segments:
                 placeSegmentAsMesh(segment, 7, filamentNumber, bm, params)
                 # placeSegmentAsCurve(segment, 7, 0,
+
                 #                     0, mainCurveData, params)
 
     bm.to_mesh(meshData)
@@ -783,14 +775,9 @@ def placeLayer(curves, zPos, layerNumber, collection, coin, params):
         mat = bpy.data.materials.get(material)
         meshOB.data.materials.append(mat)
 
-    # curveOB = bpy.data.objects.new(
-    #     f'Layer_Main_{layerNumber}', mainCurveData)
-
-    # Properties for debugging and other uses
     meshOB.data["zPos"] = zPos
     meshOB["zPos"] = zPos
 
-    # curveOB.data["type"] = curveType
     meshOB["type"] = Keywords.meshObject
 
     meshOB.data["lengthOfCurve"] = lengthOfCurve
@@ -802,7 +789,6 @@ def placeLayer(curves, zPos, layerNumber, collection, coin, params):
 
     addVisibilityDriver(meshOB)
     addVisibilityDriver(meshOB, "hide_render")
-    # collection.objects.link(curveOB)
 
     return meshOB
 
