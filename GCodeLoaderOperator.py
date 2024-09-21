@@ -166,7 +166,7 @@ class GCodeLoaderOperator(bpy.types.Operator):
         self.state = 0
         self.i = 0
         self.listOfParsedLayers = GCodeReader.gcodeParser(
-            self.fileName, self.params)[2:3]
+            self.fileName, self.params)
 
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
