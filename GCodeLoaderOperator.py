@@ -44,6 +44,10 @@ class GCodeLoaderOperator(bpy.types.Operator):
     bl_label = 'Load GCode'
     bl_description = "Load the GCode and construct the model"
 
+    @classmethod
+    def poll(cls, context):
+        return context.scene.Stitcher_Props.FilePath is not None and len(context.scene.Stitcher_Props.FilePath) > 0 and context.scene.Stitcher_Props.Loading_Ready
+
     def modal(self, context, event):
         if self.state == 2:
             self.endTime = time.time()

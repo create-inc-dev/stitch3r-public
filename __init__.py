@@ -121,29 +121,15 @@ class Options(PanelParent):
 
         row = col.row()
         col.operator('opr.gcode_loader', text='Load GCode')
+
         row = col.row()
         col.operator('opr.asset_loader', text='Load Assets')
+
         row = col.row()
         col.operator('opr.meshifier')
+
         row = col.row()
         row.label(text=context.scene.Stitcher_Props.Status)
-
-
-class Filters(PanelParent):
-    bl_parent_id = "VIEW3D_PT_panel_options"
-    bl_idname = 'VIEW3D_PT_panel_fiters'
-    bl_label = "Filters"
-    bl_options = {"DEFAULT_CLOSED"}
-
-    def draw(self, context):
-        col = self.layout.column()
-        # row = col.row()
-        # row.prop(context.scene.Stitcher_Props, 'ViewportOnly')
-        row = col.row()
-        row.label(text="Features:")
-        for propName in propsFilter:
-            row = col.row()
-            row.prop(context.scene.Stitcher_Props, propName)
 
 
 class Animatable(PanelParent):
@@ -210,79 +196,112 @@ class TypeFilters(PanelParent):
             row.prop(propKeyValue, "value", text=propKeyValue.key)
 
 
+def showPopup(message, title, icon):
+    def draw(self, context):
+        self.layout.label(text=message)
+
+    bpy.context.window_manager.popup_menu(draw, title=title, icon=icon)
+
+
 class KeyValueType(bpy.types.PropertyGroup):
     key: bpy.props.StringProperty(name="Key")
     value: bpy.props.BoolProperty(name="Value")
 
 
 def fileNameUpdationFunction(self, context):
-
+    context.scene.Stitcher_Props.Loading_Ready = False
     self.Status = "Preprocessing the File"
     startTime = time.time()
-    file = open(self.FilePath, 'r')
-    print(self.FilePath)
 
-    fi = io.FileIO(file.fileno())
-    fb = io.BufferedReader(fi)
+    filename, file_extension = os.path.splitext(self.FilePath)
 
-    typesSet = set()
-    filamentSet = set()
-    line = fb.readline()
+    if file_extension == '.gcode':
+        file = open(self.FilePath, 'r')
+        print(self.FilePath)
 
-    typePattern = Patterns.printerSpecificPatterns['orca']['typePattern']
-    filamentChangePattern = Patterns.printerSpecificPatterns['orca']['filamentChangePattern']
+        fi = io.FileIO(file.fileno())
+        fb = io.BufferedReader(fi)
 
-    while line:
-        line = line.decode().strip()
-        if bool(typePattern.match(line)):
-            curveType = typePattern.search(line)[1].strip()
-            subbedType = re.sub(" |/", "_", curveType)
-            typesSet.add(subbedType)
-
-        if bool(filamentChangePattern.match(line)):
-            filamentNumber = int(filamentChangePattern.search(line)[1].strip())
-            filamentSet.add(filamentNumber)
-
+        typesSet = set()
+        filamentSet = set()
         line = fb.readline()
 
-    file.close()
+        typePattern = Patterns.printerSpecificPatterns['orca']['typePattern']
+        filamentChangePattern = Patterns.printerSpecificPatterns['orca']['filamentChangePattern']
+        curveGcodePattern = Patterns.curveGcodePattern
+        g2g3Found = False
 
-    self.TypesFiltersMap.clear()
-    self.TypesFiltersDict.clear()
+        while line:
+            line = line.decode().strip()
+            if bool(typePattern.match(line)):
+                curveType = typePattern.search(line)[1].strip()
+                subbedType = re.sub(" |/", "_", curveType)
+                typesSet.add(subbedType)
 
-    for idx, item in enumerate(typesSet):
-        temp = self.TypesFiltersMap.add()
-        temp.key = item
-        temp.value = True
+            if bool(filamentChangePattern.match(line)):
+                filamentNumber = int(
+                    filamentChangePattern.search(line)[1].strip())
+                filamentSet.add(filamentNumber)
 
-        self.TypesFiltersDict[item] = idx
+            if bool(curveGcodePattern.match(line)):
+                g2g3Found = True
+                break
 
-    self.materials.clear()
+            line = fb.readline()
 
-    if bpy.data.materials.get(Keywords.materialName) == None:
-        filepath = os.path.join(os.path.dirname(
-            os.path.abspath(__file__)), "assets.blend")
-        with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
-            data_to.materials = [Keywords.materialName]
+        file.close()
 
-        mat = bpy.data.materials.get(Keywords.materialName).copy()
-        mat.name = getFilamentName(Keywords.materialName, 0)
+        self.TypesFiltersMap.clear()
+        self.TypesFiltersDict.clear()
 
-    self.materials.append(getFilamentName(Keywords.materialName, 0))
+        for idx, item in enumerate(typesSet):
+            temp = self.TypesFiltersMap.add()
+            temp.key = item
+            temp.value = True
 
-    for filamentNumber in filamentSet:
-        if filamentNumber != 0 and bpy.data.materials.get(getFilamentName(Keywords.materialName, filamentNumber)) == None:
+            self.TypesFiltersDict[item] = idx
+
+        self.materials.clear()
+
+        if bpy.data.materials.get(Keywords.materialName) == None:
+            filepath = os.path.join(os.path.dirname(
+                os.path.abspath(__file__)), "assets.blend")
+            with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
+                data_to.materials = [Keywords.materialName]
+
             mat = bpy.data.materials.get(Keywords.materialName).copy()
-            mat.name = getFilamentName(
-                Keywords.materialName, filamentNumber)
+            mat.name = getFilamentName(Keywords.materialName, 0)
 
-            self.materials.append(getFilamentName(
-                Keywords.materialName, filamentNumber))
+        self.materials.append(getFilamentName(Keywords.materialName, 0))
 
-    endTime = time.time()
-    timeTaken = int(endTime - startTime)
+        for filamentNumber in filamentSet:
+            if filamentNumber != 0 and bpy.data.materials.get(getFilamentName(Keywords.materialName, filamentNumber)) == None:
+                mat = bpy.data.materials.get(Keywords.materialName).copy()
+                mat.name = getFilamentName(
+                    Keywords.materialName, filamentNumber)
 
-    self.Status = "File Preprocessing Done: took {}s".format(timeTaken)
+                self.materials.append(getFilamentName(
+                    Keywords.materialName, filamentNumber))
+
+        endTime = time.time()
+        timeTaken = int(endTime - startTime)
+
+        context.scene.Stitcher_Props.Loading_Ready = not g2g3Found
+
+        if g2g3Found:
+            showPopup(
+                "File contains G2/G3 GCode Commands. Please turn off 'Arc Fitting' in slicer settings",
+                "Invalid GCode", "ERROR")
+            self.Status = "File contains G2/G3. Please Turn off Arc Fitting"
+
+        else:
+            self.Status = "File Preprocessing Done: took {}s".format(timeTaken)
+
+    else:
+        showPopup(
+            "Please provide a valid GCode File with .gcode extension",
+            "Invalid File", "ERROR")
+        self.Status = "Invalid File"
 
 
 class Stitcher_Props(bpy.types.PropertyGroup):
@@ -316,8 +335,8 @@ class Stitcher_Props(bpy.types.PropertyGroup):
     TypesFiltersDict = {}
     materials = []
 
-    ViewportOnly: bpy.props.BoolProperty(
-        name='Viewport Only', description="The filters below would only affect the viewport.\nThe features would still appear in the render", default=True)
+    Loading_Ready: bpy.props.BoolProperty(
+        name='Loading Ready', description="Gcode File Can Be Loaded", default=False)
 
     End_Point: bpy.props.BoolProperty(name='End Point', default=True)
     Extruder_Error: bpy.props.BoolProperty(name='Extruder Error', default=True)
@@ -352,8 +371,6 @@ propsMain = [
     'ObjectName', 'BevelName', 'FilePath'
 ]
 
-propsFilter = ['Gap_fill', 'External_perimeter', 'Perimeter', 'Top_solid_infill', 'Bridge_infill', 'Internal_infill', 'Custom',
-               'Solid_infill', 'Skirt_Brim', 'End_Point', 'Overhang_perimeter', 'Support_material', 'Support_material_interface', 'Extruder_Error']
 propsAnimatable = ['LayerIndexTop']
 
 

@@ -40,6 +40,8 @@ class Patterns:
     nonMovingGcodePattern = re.compile(
         "\s*G[01](\s+[EF](?:[-+]?(?:\d*\.\d+|\d+)))+\s*$")
     filamentChangePattern = re.compile("\s*T(\d+)$")
+    curveGcodePattern = re.compile(
+        "(\s*G[23](?:\s+[XYZEFIJPR](?:[-+]?(?:\d*\.\d+|\d+)))+\s*)(?:;(.*))?$")
 
     printerSpecificPatterns = {'orca': {
         'layerChangePattern': re.compile("\s*;LAYER_CHANGE\s*"),
