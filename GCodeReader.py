@@ -221,11 +221,13 @@ def removeSeamDistance(coords, coin, params):
             if (point - prevPoint).length + lengthSoFar > startingSeam:
                 unitVector = (point - prevPoint).normalized()
                 newStartingPoint = prevPoint + startingSeam * unitVector
-                newCoord = {'point': newStartingPoint,
-                            'width': coord['width'],
-                            'height': coord['height']}
 
-                coords.insert(0, newCoord)
+                if (newStartingPoint - point).length > 0.00001:
+                    newCoord = {'point': newStartingPoint,
+                                'width': coord['width'],
+                                'height': coord['height']}
+
+                    coords.insert(0, newCoord)
                 break
             else:
                 prevCoord = coords.pop(0)
@@ -243,11 +245,13 @@ def removeSeamDistance(coords, coin, params):
             if (point - prevPoint).length + lengthSoFar > endingSeam:
                 unitVector = (point - prevPoint).normalized()
                 newEndingPoint = prevPoint + endingSeam * unitVector
-                newCoord = {'point': newEndingPoint,
-                            'width': coord['width'],
-                            'height': coord['height']}
 
-                coords.append(newCoord)
+                if (newStartingPoint - point).length > 0.00001:
+                    newCoord = {'point': newEndingPoint,
+                                'width': coord['width'],
+                                'height': coord['height']}
+
+                    coords.append(newCoord)
                 break
             else:
                 prevCoord = coords.pop()

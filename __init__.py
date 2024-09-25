@@ -67,17 +67,6 @@ class AssetLoaderOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class MeshifyOperator(bpy.types.Operator):
-    bl_idname = 'opr.meshifier'
-    bl_label = 'Meshify!!!'
-    bl_description = "VERY SLOW, VERY EXPERIMENTAL!!! DO NOT USE!!!\nConverts everything to mesh"
-
-    def execute(self, context):
-        sys.modules[modulesFullNames['Meshifier']].meshify(
-            bpy.context.scene["Stitcher_Object_Collection"])
-        return {'FINISHED'}
-
-
 class ExternalPerimeterSelector(bpy.types.Operator):
 
     bl_idname = 'opr.external_perimeter_selector'
@@ -280,6 +269,7 @@ def fileNameUpdationFunction(self, context):
                 mat.name = getFilamentName(
                     Keywords.materialName, filamentNumber)
 
+            if filamentNumber != 0:
                 self.materials.append(getFilamentName(
                     Keywords.materialName, filamentNumber))
 
@@ -290,7 +280,7 @@ def fileNameUpdationFunction(self, context):
 
         if g2g3Found:
             showPopup(
-                "File contains G2/G3 GCode Commands. Please turn off 'Arc Fitting' in slicer settings",
+                "Err 33: File contains G2/G3 GCode Commands. Please turn off 'Arc Fitting' in slicer settings",
                 "Invalid GCode", "ERROR")
             self.Status = "File contains G2/G3. Please Turn off Arc Fitting"
 
@@ -299,7 +289,7 @@ def fileNameUpdationFunction(self, context):
 
     else:
         showPopup(
-            "Please provide a valid GCode File with .gcode extension",
+            "Err 34: Please provide a valid GCode File with .gcode extension",
             "Invalid File", "ERROR")
         self.Status = "Invalid File"
 
@@ -364,7 +354,7 @@ class Stitcher_Props(bpy.types.PropertyGroup):
 
 
 CLASSES = [
-    KeyValueType, Stitcher_Props, Options, TypeFilters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, NonAnimatable, ExternalPerimeterSelector, GeometryNodesApplicator, MeshifyOperator,
+    KeyValueType, Stitcher_Props, Options, TypeFilters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, NonAnimatable, ExternalPerimeterSelector, GeometryNodesApplicator,
 ]
 
 propsMain = [
