@@ -115,9 +115,6 @@ class Options(PanelParent):
         col.operator('opr.asset_loader', text='Load Assets')
 
         row = col.row()
-        col.operator('opr.meshifier')
-
-        row = col.row()
         row.label(text=context.scene.Stitcher_Props.Status)
 
 

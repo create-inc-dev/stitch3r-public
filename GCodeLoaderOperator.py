@@ -99,8 +99,14 @@ class GCodeLoaderOperator(bpy.types.Operator):
             heightOffset = self.params[ParamNames.heightOffset]
 
             for elem in currentLayer.gcodes:
-                if (elem["E"] > 0):
-                    if (elem['type'] == prevType and elem['filament'] == prevFilament):
+
+                visibilityPropertyIndex = bpy.context.scene.Stitcher_Props.TypesFiltersDict[
+                    elem['type']]
+                isTypeVisible = bpy.context.scene.Stitcher_Props.TypesFiltersMap[
+                    visibilityPropertyIndex].value
+
+                if (elem["E"] > 0 and isTypeVisible):
+                    if (elem['filament'] == prevFilament):
 
                         coords.append({"point": (elem['X'], elem['Y'], elem['Z']),
                                        "width": elem['W'] + widthOffset,
