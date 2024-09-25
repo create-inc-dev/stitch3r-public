@@ -756,12 +756,7 @@ def placeLayer(curves, zPos, layerNumber, collection, coin, params):
         coords = curve['coords']
         filamentNumber = curve['filament']
 
-        visibilityPropertyIndex = bpy.context.scene.Stitcher_Props.TypesFiltersDict[
-            curve['type']]
-        isTypeVisible = bpy.context.scene.Stitcher_Props.TypesFiltersMap[
-            visibilityPropertyIndex].value
-
-        if (len(coords) > 1 and isTypeVisible):
+        if (len(coords) > 1):
             segments = getSegments(coords, coin, params)
             for segment in segments:
                 placeSegmentAsMesh(segment, 7, filamentNumber, bm, params)

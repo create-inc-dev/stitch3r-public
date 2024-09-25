@@ -134,7 +134,6 @@ class GCodeLoaderOperator(bpy.types.Operator):
                                "height": None}]
 
             curvesToPlace.append({"coords": coords,
-                                  "type": prevType,
                                   "filament": prevFilament})
 
             GCodeReader.placeLayer(curvesToPlace, currentLayer.zPos,
