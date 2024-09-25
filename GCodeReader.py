@@ -246,7 +246,7 @@ def removeSeamDistance(coords, coin, params):
                 unitVector = (point - prevPoint).normalized()
                 newEndingPoint = prevPoint + endingSeam * unitVector
 
-                if (newStartingPoint - point).length > 0.00001:
+                if (newEndingPoint - point).length > 0.00001:
                     newCoord = {'point': newEndingPoint,
                                 'width': coord['width'],
                                 'height': coord['height']}
