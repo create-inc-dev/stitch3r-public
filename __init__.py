@@ -317,6 +317,8 @@ class Stitcher_Props(bpy.types.PropertyGroup):
         name='Extruder Error Probability', default=0, description='The probability with which a point would be picked to be varied.\n0 being none and 1 being all', min=0)
     MergeAngle: bpy.props.FloatProperty(
         name='Merge Angle', default=3, description='The minimum angle in degrees on which to merge two lines', min=0, step=1)
+    SlicesPerPrintLine: bpy.props.IntProperty(
+        name='Slices Per Print Line', description="Number of slices for one print line", default=5, min=3, max=11)
 
     TypesFiltersMap: bpy.props.CollectionProperty(type=KeyValueType)
     TypesFiltersDict = {}

@@ -9,6 +9,7 @@ class ParamNames:
     seamAbberations = "Seam Abberations"
     seamDistance = "SeamDistance"
     mergeAngle = "MergeAngle"
+    SlicesPerPrintLine = "SlicesPerPrintLine"
     degreesPerJointPoint = "DegreesPerJointPoint"
 
     amount = "Amount"
@@ -81,5 +82,5 @@ def getFilamentName(filamentPrefix, number):
     return filamentPrefix + "_" + str(number)
 
 
-propsNonAnimatable = ['WidthOffset', 'HeightOffset', 'Precision', 'SeamDistance', 'MergeAngle', 'DegreesPerJointPoint', ('Seam Abberations', (
+propsNonAnimatable = ['WidthOffset', 'HeightOffset', 'Precision', 'SeamDistance', 'MergeAngle', 'SlicesPerPrintLine', 'DegreesPerJointPoint', ('Seam Abberations', (
     'SeamAbberation_Amount', 'Amount'), ('SeamAbberation_Probability', 'Probability')), ]

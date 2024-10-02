@@ -262,49 +262,68 @@ def removeSeamDistance(coords, coin, params):
     return coords
 
 
+def simplifyPolyline(coords, mergeAngle, startI):
+    newCoords = []
+
+    i = startI
+    i += 1
+
+    newCoords.extend(coords[:i])
+    merged = False
+
+    while (i < len(coords) - 1):
+        coord1 = newCoords[-1]
+        coord2 = coords[i]
+        coord3 = coords[i + 1]
+
+        point1, point2, point3 = (
+            Vector(coord1["point"]), Vector(coord2["point"]), Vector(coord3["point"]))
+
+        firstVector = point2 - point1
+        secondVector = point3 - point2
+
+        angleBetween = (firstVector * -1).angle(secondVector, math.pi)
+        angleBetween = angleBetween if angleBetween < math.pi else math.pi * 2 - angleBetween
+
+        if angleBetween < mergeAngle:
+            newCoords.append(coord2)
+        else:
+            merged = True
+
+        newCoords.append(coord3)
+        i += 2
+
+    if i == len(coords) - 1:
+        newCoords.append(coords[-1])
+
+    return [merged, newCoords]
+
+
 def getSegments(coords, coin, params):
 
     mergeAngle = (180 - params[ParamNames.mergeAngle]) * math.pi/180
 
-    newCoords = []
-    coordinateBuffer = []
+    newCoords = coords
+    timesNotMerged = 0
+    i = 0
+    while timesNotMerged < 2:
+        merged, newCoords = simplifyPolyline(newCoords, mergeAngle, i)
+        i = (i+1) % 2
+
+        if merged:
+            timesNotMerged = 0
+        else:
+            timesNotMerged += 1
 
     segments = []
-
     currentSegment = []
-
-    i = 0
-    while i < len(coords):
-
-        if i == 0:
-            newCoords.append(coords[i])
-        elif i == len(coords) - 1:
-            newCoords.append(coords[i])
-
-        else:
-            coord1 = newCoords[-1]
-            coord2 = coords[i]
-            coord3 = coords[i + 1]
-
-            point1, point2, point3 = (
-                Vector(coord1["point"]), Vector(coord2["point"]), Vector(coord3["point"]))
-
-            firstVector = point2 - point1
-            secondVector = point3 - point2
-
-            angleBetween = (firstVector * -1).angle(secondVector, math.pi)
-            angleBetween = angleBetween if angleBetween < math.pi else math.pi * 2 - angleBetween
-
-            if angleBetween < mergeAngle:
-                newCoords.append(coord2)
-
-        i += 1
 
     newCoords = removeSeamDistance(newCoords, coin, params)
 
     if (len(newCoords) == 2):
         return [newCoords]
 
+    coordinateBuffer = []
     i = 0
     while i < len(newCoords):
         coordinateBuffer.append(newCoords[i])
@@ -604,8 +623,8 @@ def createTerminalSliceMesh(slice, bm, filamentNumber, isTop=False):
 
 
 def placeSegmentAsMesh(segment, numberOfSlices,  filamentNumber,  bm, params):
-    if numberOfSlices % 2 == 0:
-        raise Exception("number of slices must always be an odd number")
+    # if numberOfSlices % 2 == 0:
+    #     raise Exception("number of slices must always be an odd number")
 
     halfSlice = int(numberOfSlices/2)
     slices = []
@@ -751,6 +770,7 @@ def placeLayer(curves, zPos, layerNumber, collection, coin, params):
 
     meshData = bpy.data.meshes.new('myMesh')
     bm = bmesh.new()
+    numberOfSlices = params[ParamNames.SlicesPerPrintLine]
 
     for curve in curves:
         coords = curve['coords']
@@ -759,7 +779,8 @@ def placeLayer(curves, zPos, layerNumber, collection, coin, params):
         if (len(coords) > 1):
             segments = getSegments(coords, coin, params)
             for segment in segments:
-                placeSegmentAsMesh(segment, 7, filamentNumber, bm, params)
+                placeSegmentAsMesh(segment, numberOfSlices,
+                                   filamentNumber, bm, params)
                 # placeSegmentAsCurve(segment, 7, 0,
 
                 #                     0, mainCurveData, params)
