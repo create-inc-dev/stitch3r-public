@@ -295,8 +295,6 @@ class Stitcher_Props(bpy.types.PropertyGroup):
 
     ObjectName: bpy.props.StringProperty(
         name='Object Name', description='What to name the imported object collection', default='OBJECT')
-    BevelName: bpy.props.StringProperty(
-        name='Bevel Name', description='What to name the created bevel profiles', default='bevel')
     FilePath: bpy.props.StringProperty(
         name='File Path', description="Path of GCode file", subtype="FILE_PATH", update=fileNameUpdationFunction)
 
@@ -357,7 +355,7 @@ CLASSES = [
 ]
 
 propsMain = [
-    'ObjectName', 'BevelName', 'FilePath'
+    'ObjectName',  'FilePath'
 ]
 
 propsAnimatable = ['LayerIndexTop']
