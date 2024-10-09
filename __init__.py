@@ -10,12 +10,12 @@ import os
 
 bl_info = {
     'name': 'Stitch3r - GCode Renderer',
-    'blender': (3, 0, 1),
+    'blender': (4, 2, 0),
     'category': 'Object',
     'location': "View3D > Tools > MyPlugin",
-    'version': (1, 0, 0),
+    'version': (2, 0, 1),
     'author': 'Vipul Rajan',
-    'description': 'An example addon',
+    'description': 'GCode Visualizer Tool',
 }
 
 modulesNames = ['Constants', 'ExtruderErrorCreator', 'Exceptions', 'EndPointCreator',
