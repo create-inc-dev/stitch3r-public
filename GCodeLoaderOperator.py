@@ -65,8 +65,6 @@ class GCodeLoaderOperator(bpy.types.Operator):
 
             self.objectName = getattr(
                 bpy.context.scene.Stitcher_Props, 'ObjectName')
-            self.bevelSuffix = getattr(
-                bpy.context.scene.Stitcher_Props, 'BevelName')
 
             i = 0
 
