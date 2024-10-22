@@ -23,6 +23,7 @@ class Keywords:
     materialName = "Stitcher Material"
     geoNodesName = "Stitcher Geometry Nodes"
     importCollectionName = "Import Things"
+    shadowCatcherCollectionName = "Shadow Catcher"
     geoNodesModifierName = "GeoNodes"
     viewportOnly = "ViewportOnly"
     parent = "parent"
@@ -42,7 +43,7 @@ class Patterns:
         "\s*G[01](\s+[EF](?:[-+]?(?:\d*\.\d+|\d+)))+\s*$")
     filamentChangePattern = re.compile("\s*T(\d+)$")
     curveGcodePattern = re.compile(
-        "(\s*G[23](?:\s+[XYZEFIJPR](?:[-+]?(?:\d*\.\d+|\d+)))+\s*)(?:;(.*))?$")
+        "(\s*G([23])(?:\s+[XYZEFPIJR](?:[-+]?(?:\d*\.\d+|\d+)))+\s*)(?:;(.*))?$")
 
     printerSpecificPatterns = {'orca': {
         'layerChangePattern': re.compile("\s*;LAYER_CHANGE\s*"),
@@ -82,5 +83,5 @@ def getFilamentName(filamentPrefix, number):
     return filamentPrefix + "_" + str(number)
 
 
-propsNonAnimatable = ['WidthOffset', 'HeightOffset', 'Precision', 'SeamDistance', 'MergeAngle', 'SlicesPerPrintLine', 'DegreesPerJointPoint', ('Seam Abberations', (
+propsNonAnimatable = ['WidthOffset', 'HeightOffset', 'SeamDistance', 'MergeAngle', 'SlicesPerPrintLine', 'DegreesPerJointPoint', ('Seam Abberations', (
     'SeamAbberation_Amount', 'Amount'), ('SeamAbberation_Probability', 'Probability')), ]

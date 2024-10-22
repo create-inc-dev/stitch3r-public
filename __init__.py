@@ -13,12 +13,12 @@ bl_info = {
     'blender': (4, 2, 0),
     'category': 'Object',
     'location': "View3D > Tools > MyPlugin",
-    'version': (2, 0, 1),
+    'version': (2, 1, 1),
     'author': 'Vipul Rajan',
     'description': 'GCode Visualizer Tool',
 }
 
-modulesNames = ['Constants', 'ExtruderErrorCreator', 'Exceptions', 'EndPointCreator',
+modulesNames = ['Constants', 'ExtruderErrorCreator', 'Exceptions', 'CurveGCodeProcessor', 'EndPointCreator',
                 'BevelShapeCreator', 'GCodeReader', 'Meshifier', 'GCodeLoaderOperator']
 
 modulesFullNames = {}
@@ -49,6 +49,19 @@ GCodeLoaderOperatorModule = sys.modules[modulesFullNames['GCodeLoaderOperator']]
 GCodeLoaderOperator = GCodeLoaderOperatorModule.GCodeLoaderOperator
 
 
+class G2G3ConfirmationDialog(bpy.types.Operator):
+    bl_idname = "wm.g2g3confirmation"
+    bl_label = "Confirm Arc Fitting"
+
+    # This function will be executed when the user clicks 'OK'
+    def execute(self, context):
+        return {'FINISHED'}
+
+    # This function shows the confirmation dialog
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event, title="Confirm Arc Fitting", message="Your file contains G2/G3 GCode commands.\nWhile they are supported and should work, it is recommended to turn 'Arc Fitting' off in your slicer settings before generating the GCode.\nIf your loaded model appears broken in Blender this is possibly the culprit.\nIf you have already turned off Arc Fitting and still getting this warning, you can safely ignore it. Your slicer is just producing retraction commands that will be ignored by the addon", confirm_text="I understand, please proceed", icon="WARNING", translate=True)
+
+
 class AssetLoaderOperator(bpy.types.Operator):
 
     bl_idname = 'opr.asset_loader'
@@ -65,6 +78,74 @@ class AssetLoaderOperator(bpy.types.Operator):
             if col is not None:
                 bpy.context.scene.collection.children.link(col)
         return {'FINISHED'}
+
+
+class ShadowCatcherLoaderOperator(bpy.types.Operator):
+
+    bl_idname = 'opr.shadow_catcher_loader'
+    bl_label = 'Load Shadow Catcher'
+    bl_description = "Load the shadow catcher. Only works with cycles"
+
+    def execute(self, context):
+        filepath = os.path.join(os.path.dirname(
+            os.path.abspath(__file__)), "assets.blend")
+        with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
+            data_to.collections = [Keywords.shadowCatcherCollectionName]
+
+        for col in data_to.collections:
+            if col is not None:
+                bpy.context.scene.collection.children.link(col)
+        return {'FINISHED'}
+
+
+class RenderSettingsOperator(bpy.types.Operator):
+
+    bl_idname = 'opr.apply_render_settings'
+    bl_label = 'Apply Recommended Render Settings'
+    bl_description = "Applies the recommended settings for CYCLES render engine"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    # This function will be executed when the user clicks 'OK'
+    def execute(self, context):
+
+        bpy.context.scene.render.engine = 'CYCLES'
+        bpy.context.scene.cycles.device = "GPU"
+
+        # Access Cycles preferences
+        cycles_prefs = bpy.context.preferences.addons['cycles'].preferences
+
+        # Set the compute device type to CUDA (could also be 'OPTIX' or 'OPENCL')
+        cycles_prefs.compute_device_type = 'CUDA'
+        cycles_prefs.get_devices()
+        # Enable all available CUDA devices (GPUs)
+        for device in cycles_prefs.devices:
+            if device.type == 'GPU':
+                device.use = True
+
+        bpy.context.scene.cycles.adaptive_threshold = 0.1
+        bpy.context.scene.cycles.samples = 1024
+
+        bpy.context.scene.cycles.max_bounces = 1
+        bpy.context.scene.cycles.diffuse_bounces = 1
+        bpy.context.scene.cycles.glossy_bounces = 1
+        bpy.context.scene.cycles.transmission_bounces = 1
+        bpy.context.scene.cycles.volume_bounces = 0
+        bpy.context.scene.cycles.transparent_max_bounces = 1
+
+        bpy.context.scene.cycles.caustics_reflective = False
+        bpy.context.scene.cycles.caustics_refractive = False
+        bpy.context.scene.cycles.volume_max_steps = 200
+        bpy.context.scene.cycles.use_fast_gi = True
+
+        bpy.context.scene.render.use_persistent_data = True
+        bpy.context.scene.render.film_transparent = True
+
+        bpy.context.scene.cycles.debug_use_compact_bvh = True
+        return {'FINISHED'}
+
+    # This function shows the confirmation dialog
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event, title="Confirm Render Setting Application", message="These render settings are only for the CYCLES render engine. It will change your render engine to CYCLES.\nIf you are new, it is recommended to use EEVEE render engine and not use this option.", confirm_text="I understand, please proceed", icon="WARNING", translate=True)
 
 
 class ExternalPerimeterSelector(bpy.types.Operator):
@@ -113,6 +194,12 @@ class Options(PanelParent):
 
         row = col.row()
         col.operator('opr.asset_loader', text='Load Assets')
+
+        row = col.row()
+        col.operator('opr.shadow_catcher_loader', text='Load Shadow Catcher')
+
+        row = col.row()
+        col.operator('opr.apply_render_settings', text='Apply Render Settings')
 
         row = col.row()
         row.label(text=context.scene.Stitcher_Props.Status)
@@ -231,7 +318,6 @@ def fileNameUpdationFunction(self, context):
 
             if bool(curveGcodePattern.match(line)):
                 g2g3Found = True
-                break
 
             line = fb.readline()
 
@@ -273,12 +359,10 @@ def fileNameUpdationFunction(self, context):
         endTime = time.time()
         timeTaken = int(endTime - startTime)
 
-        context.scene.Stitcher_Props.Loading_Ready = not g2g3Found
+        context.scene.Stitcher_Props.Loading_Ready = True
 
         if g2g3Found:
-            showPopup(
-                "Err 33: File contains G2/G3 GCode Commands. Please turn off 'Arc Fitting' in slicer settings",
-                "Invalid GCode", "ERROR")
+            bpy.ops.wm.g2g3confirmation('INVOKE_DEFAULT')
             self.Status = "File contains G2/G3. Please Turn off Arc Fitting"
 
         else:
@@ -351,7 +435,7 @@ class Stitcher_Props(bpy.types.PropertyGroup):
 
 
 CLASSES = [
-    KeyValueType, Stitcher_Props, Options, TypeFilters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, NonAnimatable, ExternalPerimeterSelector, GeometryNodesApplicator,
+    G2G3ConfirmationDialog, RenderSettingsOperator, KeyValueType, Stitcher_Props, Options, TypeFilters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, ShadowCatcherLoaderOperator, NonAnimatable, ExternalPerimeterSelector, GeometryNodesApplicator,
 ]
 
 propsMain = [

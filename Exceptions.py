@@ -7,9 +7,8 @@ class FormatException(Exception):
         super().__init__(self.message)
 
 
-class ImproperG2FG3Expcetion(Exception):
-    def __init__(self):
-        self.message = "G2/G3 Commands in R form require at least one of X or Y"
+class ImproperG2G3Exception(Exception):
+    def __init__(self, message):
         super().__init__(self.message)
 
 

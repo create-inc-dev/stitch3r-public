@@ -29,6 +29,7 @@ Coin = sys.modules[moduleParentName + '.Constants'].BiasedCoin
 Keywords = sys.modules[moduleParentName + '.Constants'].Keywords
 getFilamentName = sys.modules[moduleParentName + '.Constants'].getFilamentName
 Patterns = sys.modules[moduleParentName + '.Constants'].Patterns
+CurveGCodeProcessor = sys.modules[moduleParentName + '.CurveGCodeProcessor']
 
 
 class Layer:  # Class that stores information about the layer. Needs to change because there are different widths in the same layer as well
@@ -54,6 +55,9 @@ def gcodeParser(gcodeFilePath, params):
 
     # Pattern that matches G0 or G1 commands. To be noted, I don't see any G0 commansd in Prusa Slicer.
     gcodePattern = Patterns.gcodePattern
+
+    # Pattern that matches G2 or G3 commands.
+    curveGcodePattern = Patterns.curveGcodePattern
     # Matches the G0 or G1 commands that have no X,Y or Z components, thereby are not travel moves.
     nonMovingGcodePattern = Patterns.nonMovingGcodePattern
     # Detecting Layer change, I think this makes things incompatible with vase mode.
@@ -75,8 +79,6 @@ def gcodeParser(gcodeFilePath, params):
     # E is extrusion; X, Y and Z are the coordinates; W is width of the  print line
     valueTacker = {'X': 0, 'Y': 0, 'Z': 0, 'E': 0, 'W': 0.5,
                    'H': 0.2, 'layerNumber': 0, 'type': 'Custom', 'filament': 0}
-
-    precision = params[ParamNames.precision]
 
     while True:
         try:
@@ -105,10 +107,54 @@ def gcodeParser(gcodeFilePath, params):
                 for term in separatedGcode:
                     tempDict[term[0]] = float(term[1:])
                     if term[0] in ['X', 'Y', 'Z']:
-                        valueTacker[term[0]] = round(
-                            float(term[1:]), precision)
+                        valueTacker[term[0]] = float(term[1:])
                 tempDict['lineNumber'] = curLineNumber
 
+                prevLayerGcodes.append(tempDict.copy())
+
+        if bool(curveGcodePattern.match(line)):
+            matchObject = curveGcodePattern.search(line)
+            gcodePart = matchObject[1].strip()
+            commandNumber = matchObject[2]
+
+            isG3 = commandNumber == '3'
+
+            separatedGcode = gcodePart.split()
+            tempDict = valueTacker.copy()
+
+            curveCommandDict = {}
+
+            for term in separatedGcode:
+                termCode = term[0]
+                termNumber = float(term[1:])
+
+                curveCommandDict[termCode] = termNumber
+
+            for termCode in ['X', 'Y', 'Z', 'P', 'I', 'J', 'R', 'E']:
+                if not termCode in curveCommandDict:
+                    curveCommandDict[termCode] = None
+
+            isIJCommand = CurveGCodeProcessor.isIJForm(curveCommandDict)
+
+            if isIJCommand:
+                points = CurveGCodeProcessor.g2g3IJFormCalculator(valueTacker, curveCommandDict['X'], curveCommandDict['Y'], curveCommandDict['Z'],
+                                                                  curveCommandDict['P'], curveCommandDict['I'], curveCommandDict['J'], isG3, valueTacker['W']*3)
+            else:
+                points = CurveGCodeProcessor.g2g3RFormCalculator(valueTacker, curveCommandDict['X'], curveCommandDict['Y'], curveCommandDict['Z'],
+                                                                 curveCommandDict['P'], curveCommandDict['R'], isG3, valueTacker['W']*3)
+
+            for term in ['X', 'Y']:
+                valueTacker[term] = curveCommandDict[term]
+
+            valueTacker['Z'] = curveCommandDict['Z'] if curveCommandDict['Z'] else valueTacker['Z']
+
+            for point in points:
+                tempDict['X'] = point.x
+                tempDict['Y'] = point.y
+                tempDict['Z'] = point.z
+                tempDict['E'] = 1 if curveCommandDict['E'] else 0
+
+                tempDict['lineNumber'] = curLineNumber
                 prevLayerGcodes.append(tempDict.copy())
 
         # In case of layer change, push the accumulated GCodes of previous layer and start accumulating the next one.
