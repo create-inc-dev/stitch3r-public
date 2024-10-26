@@ -52,7 +52,6 @@ def gcodeParser(gcodeFilePath, params):
     numberOfLines = len(lines)
     linesIterator = iter(lines)
     listOfParsedLayers = []
-
     # Pattern that matches G0 or G1 commands. To be noted, I don't see any G0 commansd in Prusa Slicer.
     gcodePattern = Patterns.gcodePattern
 
@@ -61,12 +60,13 @@ def gcodeParser(gcodeFilePath, params):
     # Matches the G0 or G1 commands that have no X,Y or Z components, thereby are not travel moves.
     nonMovingGcodePattern = Patterns.nonMovingGcodePattern
     # Detecting Layer change, I think this makes things incompatible with vase mode.
-    layerChangePattern = Patterns.printerSpecificPatterns['orca']['layerChangePattern']
+    layerChangePattern = Patterns.printerSpecificPatterns[
+        params[ParamNames.slicer]]['layerChangePattern']
     # Detecting a change in the width of print line
-    widthPattern = Patterns.printerSpecificPatterns['orca']['widthPattern']
-    zPosPattern = Patterns.printerSpecificPatterns['orca']['zPosPattern']
-    heightPattern = Patterns.printerSpecificPatterns['orca']['heightPattern']
-    typePattern = Patterns.printerSpecificPatterns['orca']['typePattern']
+    widthPattern = Patterns.printerSpecificPatterns[params[ParamNames.slicer]]['widthPattern']
+    zPosPattern = Patterns.printerSpecificPatterns[params[ParamNames.slicer]]['zPosPattern']
+    heightPattern = Patterns.printerSpecificPatterns[params[ParamNames.slicer]]['heightPattern']
+    typePattern = Patterns.printerSpecificPatterns[params[ParamNames.slicer]]['typePattern']
     filamentChangePattern = Patterns.filamentChangePattern
 
     prevLayerGcodes = []  # All GCodes that move the nozzle, with our without extrusion would be stored here and then popped when the next later starts
@@ -143,10 +143,9 @@ def gcodeParser(gcodeFilePath, params):
                 points = CurveGCodeProcessor.g2g3RFormCalculator(valueTacker, curveCommandDict['X'], curveCommandDict['Y'], curveCommandDict['Z'],
                                                                  curveCommandDict['P'], curveCommandDict['R'], isG3, valueTacker['W']*3)
 
-            for term in ['X', 'Y']:
-                valueTacker[term] = curveCommandDict[term]
-
-            valueTacker['Z'] = curveCommandDict['Z'] if curveCommandDict['Z'] else valueTacker['Z']
+            for term in ['X', 'Y', 'Z']:
+                if curveCommandDict[term] != None:
+                    valueTacker[term] = curveCommandDict[term]
 
             for point in points:
                 tempDict['X'] = point.x

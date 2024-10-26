@@ -13,7 +13,7 @@ bl_info = {
     'blender': (4, 2, 0),
     'category': 'Object',
     'location': "View3D > Tools > MyPlugin",
-    'version': (2, 1, 1),
+    'version': (2, 1, 3),
     'author': 'Vipul Rajan',
     'description': 'GCode Visualizer Tool',
 }
@@ -41,6 +41,7 @@ Keywords = sys.modules[modulesFullNames['Constants']].Keywords
 propsNonAnimatable = sys.modules[modulesFullNames['Constants']
                                  ].propsNonAnimatable
 getFilamentName = sys.modules[modulesFullNames['Constants']].getFilamentName
+slicerItems = sys.modules[modulesFullNames['Constants']].slicerItems
 Patterns = sys.modules[modulesFullNames['Constants']].Patterns
 GCodeReader = sys.modules[modulesFullNames['GCodeReader']]
 GCodeLoaderOperatorModule = sys.modules[modulesFullNames['GCodeLoaderOperator']]
@@ -59,7 +60,33 @@ class G2G3ConfirmationDialog(bpy.types.Operator):
 
     # This function shows the confirmation dialog
     def invoke(self, context, event):
-        return context.window_manager.invoke_confirm(self, event, title="Confirm Arc Fitting", message="Your file contains G2/G3 GCode commands.\nWhile they are supported and should work, it is recommended to turn 'Arc Fitting' off in your slicer settings before generating the GCode.\nIf your loaded model appears broken in Blender this is possibly the culprit.\nIf you have already turned off Arc Fitting and still getting this warning, you can safely ignore it. Your slicer is just producing retraction commands that will be ignored by the addon", confirm_text="I understand, please proceed", icon="WARNING", translate=True)
+        return context.window_manager.invoke_confirm(self, event, title="Confirm Arc Fitting", message="Your file contains G2/G3 GCode commands.\nWhile they are supported and should work, it is recommended to turn 'Arc Fitting' off in your slicer settings before generating the GCode.\nIt will make the addon and the renders slow, especially if you are using Bambu Studio.\nIf your loaded model appears broken in Blender this is possibly the culprit.\nIf you have already turned off Arc Fitting and still getting this warning, you can safely ignore it. Your slicer is just producing retraction commands that will be ignored by the addon", confirm_text="I understand, please proceed", icon="WARNING", translate=True)
+
+
+class SlicerConfirmation(bpy.types.Operator):
+    bl_idname = "wm.slicerconfirmation"
+    bl_label = "Confirm Slicer Selection"
+
+    message: bpy.props.StringProperty(
+        name="Slicer_Message", default="No slicer was auto detected. Please manually select the slicer")
+
+    # This function will be executed when the user clicks 'OK'
+    def invoke(self, context, event):
+        # Open the dialog with invoke_props_dialog
+        return context.window_manager.invoke_props_dialog(self)
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column()
+        row = col.row()
+        row.label(text=self.message)
+
+        row = col.row()
+        row.prop(context.scene.Stitcher_Props, "SlicerType")
+
+    def execute(self, context):
+        fileNameUpdationFunction(context.scene.Stitcher_Props, context)
+        return {'FINISHED'}
 
 
 class AssetLoaderOperator(bpy.types.Operator):
@@ -282,6 +309,7 @@ class KeyValueType(bpy.types.PropertyGroup):
 
 
 def fileNameUpdationFunction(self, context):
+    print(self)
     context.scene.Stitcher_Props.Loading_Ready = False
     self.Status = "Preprocessing the File"
     startTime = time.time()
@@ -295,79 +323,110 @@ def fileNameUpdationFunction(self, context):
         fi = io.FileIO(file.fileno())
         fb = io.BufferedReader(fi)
 
-        typesSet = set()
-        filamentSet = set()
+        slicerName = Keywords.Slicers.none
+        selectedSlicerName = self.SlicerType
         line = fb.readline()
-
-        typePattern = Patterns.printerSpecificPatterns['orca']['typePattern']
-        filamentChangePattern = Patterns.printerSpecificPatterns['orca']['filamentChangePattern']
-        curveGcodePattern = Patterns.curveGcodePattern
-        g2g3Found = False
 
         while line:
             line = line.decode().strip()
-            if bool(typePattern.match(line)):
-                curveType = typePattern.search(line)[1].strip()
-                subbedType = re.sub(" |/", "_", curveType)
-                typesSet.add(subbedType)
+            if bool(Patterns.PrusaSlicerPattern.search(line)):
+                slicerName = Keywords.Slicers.prusa
+                break
 
-            if bool(filamentChangePattern.match(line)):
-                filamentNumber = int(
-                    filamentChangePattern.search(line)[1].strip())
-                filamentSet.add(filamentNumber)
+            elif bool(Patterns.OrcaSlicerPattern.search(line)):
+                slicerName = Keywords.Slicers.orca
+                break
 
-            if bool(curveGcodePattern.match(line)):
-                g2g3Found = True
+            elif bool(Patterns.BambuStudioPattern.search(line)):
+                slicerName = Keywords.Slicers.bambu
+                break
+
+            elif len(line) == 0:
+                break
 
             line = fb.readline()
 
-        file.close()
+        if slicerName == Keywords.Slicers.none:
+            slicerName = selectedSlicerName
 
-        self.TypesFiltersMap.clear()
-        self.TypesFiltersDict.clear()
+        if slicerName != Keywords.Slicers.none:
+            self.SlicerType = slicerName
+            typesSet = set()
+            filamentSet = set()
+            line = fb.readline()
 
-        for idx, item in enumerate(typesSet):
-            temp = self.TypesFiltersMap.add()
-            temp.key = item
-            temp.value = True
+            typePattern = Patterns.printerSpecificPatterns[slicerName]['typePattern']
+            filamentChangePattern = Patterns.printerSpecificPatterns[
+                slicerName]['filamentChangePattern']
+            curveGcodePattern = Patterns.curveGcodePattern
+            g2g3Found = False
 
-            self.TypesFiltersDict[item] = idx
+            while line:
+                line = line.decode().strip()
+                if bool(typePattern.match(line)):
+                    curveType = typePattern.search(line)[1].strip()
+                    subbedType = re.sub(" |/", "_", curveType)
+                    typesSet.add(subbedType)
 
-        self.materials.clear()
+                if bool(filamentChangePattern.match(line)):
+                    filamentNumber = int(
+                        filamentChangePattern.search(line)[1].strip())
+                    filamentSet.add(filamentNumber)
 
-        if bpy.data.materials.get(Keywords.materialName) == None:
-            filepath = os.path.join(os.path.dirname(
-                os.path.abspath(__file__)), "assets.blend")
-            with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
-                data_to.materials = [Keywords.materialName]
+                if bool(curveGcodePattern.match(line)):
+                    g2g3Found = True
 
-            mat = bpy.data.materials.get(Keywords.materialName).copy()
-            mat.name = getFilamentName(Keywords.materialName, 0)
+                line = fb.readline()
 
-        self.materials.append(getFilamentName(Keywords.materialName, 0))
+            file.close()
 
-        for filamentNumber in filamentSet:
-            if filamentNumber != 0 and bpy.data.materials.get(getFilamentName(Keywords.materialName, filamentNumber)) == None:
+            self.TypesFiltersMap.clear()
+            self.TypesFiltersDict.clear()
+
+            for idx, item in enumerate(typesSet):
+                temp = self.TypesFiltersMap.add()
+                temp.key = item
+                temp.value = True
+
+                self.TypesFiltersDict[item] = idx
+
+            self.materials.clear()
+
+            if bpy.data.materials.get(Keywords.materialName) == None:
+                filepath = os.path.join(os.path.dirname(
+                    os.path.abspath(__file__)), "assets.blend")
+                with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
+                    data_to.materials = [Keywords.materialName]
+
                 mat = bpy.data.materials.get(Keywords.materialName).copy()
-                mat.name = getFilamentName(
-                    Keywords.materialName, filamentNumber)
+                mat.name = getFilamentName(Keywords.materialName, 0)
 
-            if filamentNumber != 0:
-                self.materials.append(getFilamentName(
-                    Keywords.materialName, filamentNumber))
+            self.materials.append(getFilamentName(Keywords.materialName, 0))
 
-        endTime = time.time()
-        timeTaken = int(endTime - startTime)
+            for filamentNumber in filamentSet:
+                if filamentNumber != 0 and bpy.data.materials.get(getFilamentName(Keywords.materialName, filamentNumber)) == None:
+                    mat = bpy.data.materials.get(Keywords.materialName).copy()
+                    mat.name = getFilamentName(
+                        Keywords.materialName, filamentNumber)
 
-        context.scene.Stitcher_Props.Loading_Ready = True
+                if filamentNumber != 0:
+                    self.materials.append(getFilamentName(
+                        Keywords.materialName, filamentNumber))
 
-        if g2g3Found:
-            bpy.ops.wm.g2g3confirmation('INVOKE_DEFAULT')
-            self.Status = "File contains G2/G3. Please Turn off Arc Fitting"
+            endTime = time.time()
+            timeTaken = int(endTime - startTime)
 
+            context.scene.Stitcher_Props.Loading_Ready = True
+
+            if g2g3Found:
+                bpy.ops.wm.g2g3confirmation('INVOKE_DEFAULT')
+                self.Status = "File contains G2/G3. Please Turn off Arc Fitting"
+
+            else:
+                self.Status = "File Preprocessing Done: took {}s".format(
+                    timeTaken)
         else:
-            self.Status = "File Preprocessing Done: took {}s".format(timeTaken)
-
+            bpy.ops.wm.slicerconfirmation('INVOKE_DEFAULT')
     else:
         showPopup(
             "Err 34: Please provide a valid GCode File with .gcode extension",
@@ -381,6 +440,8 @@ class Stitcher_Props(bpy.types.PropertyGroup):
         name='Object Name', description='What to name the imported object collection', default='OBJECT')
     FilePath: bpy.props.StringProperty(
         name='File Path', description="Path of GCode file", subtype="FILE_PATH", update=fileNameUpdationFunction)
+    SlicerType: bpy.props.EnumProperty(
+        name="Slicer", description="Choose the slicer that was use to generate the GCode.", items=slicerItems)
 
     SeamAbberation_Amount: bpy.props.FloatProperty(
         name='Seam Abberation Distance', default=0, description='The maximum amount to vary the seams', min=0)
@@ -435,11 +496,11 @@ class Stitcher_Props(bpy.types.PropertyGroup):
 
 
 CLASSES = [
-    G2G3ConfirmationDialog, RenderSettingsOperator, KeyValueType, Stitcher_Props, Options, TypeFilters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, ShadowCatcherLoaderOperator, NonAnimatable, ExternalPerimeterSelector, GeometryNodesApplicator,
+    G2G3ConfirmationDialog, SlicerConfirmation, RenderSettingsOperator, KeyValueType, Stitcher_Props, Options, TypeFilters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, ShadowCatcherLoaderOperator, NonAnimatable, ExternalPerimeterSelector, GeometryNodesApplicator,
 ]
 
 propsMain = [
-    'ObjectName',  'FilePath'
+    'ObjectName',  'FilePath', 'SlicerType'
 ]
 
 propsAnimatable = ['LayerIndexTop']

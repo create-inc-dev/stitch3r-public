@@ -139,6 +139,8 @@ class GCodeLoaderOperator(bpy.types.Operator):
 
             bpy.context.scene.Stitcher_Props.Status = "Layer Done: {}/{}".format(
                 currentLayer.layerNumber, self.numberOfLayers)
+            print("Layer Done: {}/{}".format(currentLayer.layerNumber,
+                  self.numberOfLayers))
             self.report(
                 {'INFO'}, "Layer Done: {}/{}".format(currentLayer.layerNumber, self.numberOfLayers))
 
@@ -162,6 +164,8 @@ class GCodeLoaderOperator(bpy.types.Operator):
                         bpy.context.scene.Stitcher_Props, prop[0])
 
         params[ParamNames.seed] = 237
+        params[ParamNames.slicer] = getattr(
+            bpy.context.scene.Stitcher_Props, "SlicerType")
 
         filepath = os.path.join(os.path.dirname(
             os.path.abspath(__file__)), "assets.blend")
