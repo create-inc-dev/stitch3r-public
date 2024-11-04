@@ -49,7 +49,7 @@ def g2g3IJFormCalculator(startingPosition, X, Y, Z, P, I, J, isG3, mm_per_segmen
     angleClockWise = 2 * \
         math.pi if abs(angleClockWise - 0) < 0.0001 else angleClockWise
 
-    if angleClockWise - 2*math.pi < 0.0001:
+    if angleClockWise - 2*math.pi < 0.0001 and turns > 0:
         turns -= 1
 
     angleCounterClockWise = angleCounterClockWise + 2*math.pi*turns

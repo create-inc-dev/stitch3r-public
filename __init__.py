@@ -13,7 +13,7 @@ bl_info = {
     'blender': (4, 2, 0),
     'category': 'Object',
     'location': "View3D > Tools > MyPlugin",
-    'version': (2, 1, 3),
+    'version': (2, 1, 4),
     'author': 'Vipul Rajan',
     'description': 'GCode Visualizer Tool',
 }
@@ -43,6 +43,10 @@ propsNonAnimatable = sys.modules[modulesFullNames['Constants']
 getFilamentName = sys.modules[modulesFullNames['Constants']].getFilamentName
 slicerItems = sys.modules[modulesFullNames['Constants']].slicerItems
 Patterns = sys.modules[modulesFullNames['Constants']].Patterns
+patternMatcherFunction = sys.modules[modulesFullNames['Constants']
+                                     ].patternMatcherFunction
+patternMatcherSearch = sys.modules[modulesFullNames['Constants']
+                                   ].patternMatcherSearch
 GCodeReader = sys.modules[modulesFullNames['GCodeReader']]
 GCodeLoaderOperatorModule = sys.modules[modulesFullNames['GCodeLoaderOperator']]
 
@@ -60,7 +64,7 @@ class G2G3ConfirmationDialog(bpy.types.Operator):
 
     # This function shows the confirmation dialog
     def invoke(self, context, event):
-        return context.window_manager.invoke_confirm(self, event, title="Confirm Arc Fitting", message="Your file contains G2/G3 GCode commands.\nWhile they are supported and should work, it is recommended to turn 'Arc Fitting' off in your slicer settings before generating the GCode.\nIt will make the addon and the renders slow, especially if you are using Bambu Studio.\nIf your loaded model appears broken in Blender this is possibly the culprit.\nIf you have already turned off Arc Fitting and still getting this warning, you can safely ignore it. Your slicer is just producing retraction commands that will be ignored by the addon", confirm_text="I understand, please proceed", icon="WARNING", translate=True)
+        return context.window_manager.invoke_confirm(self, event, title="Confirm Arc Fitting", message="Your file contains G2/G3 GCode commands.\nWhile they are supported and should work, it is still a work in progress and possibly buggy. It is recommended to turn 'Arc Fitting' off in your slicer settings before generating the GCode.\nIt will make the addon and the renders slow, especially if you are using Bambu Studio.\nIf your loaded model appears broken in Blender this is possibly the culprit.\nIf you have already turned off Arc Fitting and still getting this warning, you can safely ignore it. Your slicer is just producing retraction commands that will be ignored by the addon", confirm_text="I understand, please proceed", icon="WARNING", translate=True)
 
 
 class SlicerConfirmation(bpy.types.Operator):
@@ -363,17 +367,18 @@ def fileNameUpdationFunction(self, context):
 
             while line:
                 line = line.decode().strip()
-                if bool(typePattern.match(line)):
-                    curveType = typePattern.search(line)[1].strip()
+                if patternMatcherFunction(typePattern, line):
+                    curveType = patternMatcherSearch(
+                        typePattern, line)[1].strip()
                     subbedType = re.sub(" |/", "_", curveType)
                     typesSet.add(subbedType)
 
-                if bool(filamentChangePattern.match(line)):
+                if patternMatcherFunction(filamentChangePattern, line):
                     filamentNumber = int(
-                        filamentChangePattern.search(line)[1].strip())
+                        patternMatcherSearch(filamentChangePattern, line)[1].strip())
                     filamentSet.add(filamentNumber)
 
-                if bool(curveGcodePattern.match(line)):
+                if patternMatcherFunction(curveGcodePattern, line):
                     g2g3Found = True
 
                 line = fb.readline()

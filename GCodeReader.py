@@ -29,6 +29,10 @@ Coin = sys.modules[moduleParentName + '.Constants'].BiasedCoin
 Keywords = sys.modules[moduleParentName + '.Constants'].Keywords
 getFilamentName = sys.modules[moduleParentName + '.Constants'].getFilamentName
 Patterns = sys.modules[moduleParentName + '.Constants'].Patterns
+patternMatcherFunction = sys.modules[moduleParentName +
+                                     '.Constants'].patternMatcherFunction
+patternMatcherSearch = sys.modules[moduleParentName +
+                                   '.Constants'].patternMatcherSearch
 CurveGCodeProcessor = sys.modules[moduleParentName + '.CurveGCodeProcessor']
 
 
@@ -88,9 +92,9 @@ def gcodeParser(gcodeFilePath, params):
 
         curLineNumber = curLineNumber + 1
 
-        if bool(gcodePattern.match(line)):
+        if patternMatcherFunction(gcodePattern, line):
 
-            gcodePart = gcodePattern.search(line)[1].strip()
+            gcodePart = patternMatcherSearch(gcodePattern, line)[1].strip()
             """commentPart = "" ##Only needed if there is a need to process comments later
 
             try:
@@ -102,7 +106,7 @@ def gcodeParser(gcodeFilePath, params):
             tempDict = valueTacker.copy()
 
             # Ignore any GCode G0/G1 command that doesn't move the extruder
-            if not bool(nonMovingGcodePattern.match(gcodePart)):
+            if not patternMatcherFunction(nonMovingGcodePattern, gcodePart):
 
                 for term in separatedGcode:
                     tempDict[term[0]] = float(term[1:])
@@ -112,8 +116,8 @@ def gcodeParser(gcodeFilePath, params):
 
                 prevLayerGcodes.append(tempDict.copy())
 
-        if bool(curveGcodePattern.match(line)):
-            matchObject = curveGcodePattern.search(line)
+        if patternMatcherFunction(curveGcodePattern, line):
+            matchObject = patternMatcherSearch(curveGcodePattern, line)
             gcodePart = matchObject[1].strip()
             commandNumber = matchObject[2]
 
@@ -157,21 +161,21 @@ def gcodeParser(gcodeFilePath, params):
                 prevLayerGcodes.append(tempDict.copy())
 
         # In case of layer change, push the accumulated GCodes of previous layer and start accumulating the next one.
-        elif bool(layerChangePattern.match(line)):
+        elif patternMatcherFunction(layerChangePattern, line):
             zPos = 0
             height = 0
 
             try:
                 line = next(linesIterator)
                 curLineNumber = curLineNumber + 1
-                zPos = float(zPosPattern.search(line)[1])
+                zPos = float(patternMatcherSearch(zPosPattern, line)[1])
             except (IndexError, TypeError):
                 raise NoZPosMatch(line, curLineNumber)
 
             try:
                 line = next(linesIterator)
                 curLineNumber = curLineNumber + 1
-                height = float(heightPattern.search(line)[1])
+                height = float(patternMatcherSearch(heightPattern, line)[1])
                 valueTacker['H'] = height
 
             except (IndexError, TypeError):
@@ -186,18 +190,21 @@ def gcodeParser(gcodeFilePath, params):
             prevLayerHeight = height
             curLayerNumber = curLayerNumber + 1
 
-        elif bool(heightPattern.match(line)):
-            valueTacker['H'] = float(heightPattern.search(line)[1])
+        elif patternMatcherFunction(heightPattern, line):
+            valueTacker['H'] = float(
+                patternMatcherSearch(heightPattern, line)[1])
 
-        elif bool(widthPattern.match(line)):
-            valueTacker['W'] = float(widthPattern.search(line)[1])
+        elif patternMatcherFunction(widthPattern, line):
+            valueTacker['W'] = float(
+                patternMatcherSearch(widthPattern, line)[1])
 
-        elif bool(typePattern.match(line)):
-            curveType = typePattern.search(line)[1].strip()
+        elif patternMatcherFunction(typePattern, line):
+            curveType = patternMatcherSearch(typePattern, line)[1].strip()
             valueTacker['type'] = re.sub(" |/", "_", curveType)
 
-        elif bool(filamentChangePattern.match(line)):
-            filamentNumber = int(filamentChangePattern.search(line)[1].strip())
+        elif patternMatcherFunction(filamentChangePattern, line):
+            filamentNumber = int(patternMatcherSearch(
+                filamentChangePattern, line)[1].strip())
             valueTacker['filament'] = filamentNumber
 
         elif line == "!__end__!":
