@@ -121,7 +121,7 @@ def gcodeParser(gcodeFilePath, params):
             gcodePart = matchObject[1].strip()
             commandNumber = matchObject[2]
 
-            isG3 = commandNumber == '3'
+            isG2 = commandNumber == '2'
 
             separatedGcode = gcodePart.split()
             tempDict = valueTacker.copy()
@@ -142,10 +142,10 @@ def gcodeParser(gcodeFilePath, params):
 
             if isIJCommand:
                 points = CurveGCodeProcessor.g2g3IJFormCalculator(valueTacker, curveCommandDict['X'], curveCommandDict['Y'], curveCommandDict['Z'],
-                                                                  curveCommandDict['P'], curveCommandDict['I'], curveCommandDict['J'], isG3, valueTacker['W']*3)
+                                                                  curveCommandDict['P'], curveCommandDict['I'], curveCommandDict['J'], isG2, valueTacker['W']*3)
             else:
                 points = CurveGCodeProcessor.g2g3RFormCalculator(valueTacker, curveCommandDict['X'], curveCommandDict['Y'], curveCommandDict['Z'],
-                                                                 curveCommandDict['P'], curveCommandDict['R'], isG3, valueTacker['W']*3)
+                                                                 curveCommandDict['P'], curveCommandDict['R'], isG2, valueTacker['W']*3)
 
             for term in ['X', 'Y', 'Z']:
                 if curveCommandDict[term] != None:

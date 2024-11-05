@@ -8,7 +8,7 @@ ImproperG2G3Exception = sys.modules[moduleParentName +
                                     '.Exceptions'].ImproperG2G3Exception
 
 
-def g2g3IJFormCalculator(startingPosition, X, Y, Z, P, I, J, isG3, mm_per_segment=1):
+def g2g3IJFormCalculator(startingPosition, X, Y, Z, P, I, J, isG2, mm_per_segment=1):
 
     finalX = X if X != None else startingPosition['X']
     finalY = Y if Y != None else startingPosition['Y']
@@ -26,7 +26,7 @@ def g2g3IJFormCalculator(startingPosition, X, Y, Z, P, I, J, isG3, mm_per_segmen
         (startingPosition['X'] - centerX, startingPosition['Y'] - centerY, 0))
     endVector = Vector((finalX - centerX, finalY - centerY, 0))
 
-    concernedVector = endVector if isG3 else startVector
+    concernedVector = endVector if isG2 else startVector
     xAxis = Vector((1, 0, 0))
 
     angleBetweenConcernedVectorAndXAxis = concernedVector.angle(
@@ -57,7 +57,7 @@ def g2g3IJFormCalculator(startingPosition, X, Y, Z, P, I, J, isG3, mm_per_segmen
 
     radius = startVector.length
 
-    concernedAngle = angleClockWise if isG3 else angleCounterClockWise
+    concernedAngle = angleClockWise if isG2 else angleCounterClockWise
     concernedPitch = zHeight * (2*math.pi)/concernedAngle
 
     totalLengthOfMove = math.sqrt(
@@ -67,7 +67,7 @@ def g2g3IJFormCalculator(startingPosition, X, Y, Z, P, I, J, isG3, mm_per_segmen
     points = []
     for step in range(0, numberOfSteps+1):
 
-        concernedStep = step if not isG3 else (numberOfSteps - step)
+        concernedStep = step if not isG2 else (numberOfSteps - step)
         currentAngle = concernedStep/numberOfSteps * \
             concernedAngle + angleBetweenConcernedVectorAndXAxis
 
@@ -83,7 +83,7 @@ def g2g3IJFormCalculator(startingPosition, X, Y, Z, P, I, J, isG3, mm_per_segmen
     return list(map(lambda x: x + centerVector + zOffsetVector, points))
 
 
-def g2g3RFormCalculator(startingPosition, X, Y, Z, P, R, isG3, mm_per_segment=1):
+def g2g3RFormCalculator(startingPosition, X, Y, Z, P, R, isG2, mm_per_segment=1):
 
     finalX = X if X else startingPosition['X']
     finalY = Y if Y else startingPosition['Y']
@@ -113,7 +113,7 @@ def g2g3RFormCalculator(startingPosition, X, Y, Z, P, R, isG3, mm_per_segment=1)
         raise ImproperG2G3Exception(
             "Distance between points is greater than the diameter of the curve")
 
-    if not isG3:
+    if not isG2:
         center = midPoint + perpendicularUnitVectorClockwise * centerDistanceFromMidpoint
 
     else:
@@ -122,7 +122,7 @@ def g2g3RFormCalculator(startingPosition, X, Y, Z, P, R, isG3, mm_per_segment=1)
     IJ = center - startPoint
 
     return g2g3IJFormCalculator(startingPosition, finalX, finalY, Z, P,
-                                IJ.x, IJ.y, isG3, mm_per_segment)
+                                IJ.x, IJ.y, isG2, mm_per_segment)
 
 
 def isIJForm(commandDict):
