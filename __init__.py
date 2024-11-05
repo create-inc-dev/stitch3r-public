@@ -13,7 +13,7 @@ bl_info = {
     'blender': (4, 2, 0),
     'category': 'Object',
     'location': "View3D > Tools > MyPlugin",
-    'version': (2, 1, 4),
+    'version': (2, 1, 5),
     'author': 'Vipul Rajan',
     'description': 'GCode Visualizer Tool',
 }
