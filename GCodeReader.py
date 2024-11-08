@@ -238,7 +238,13 @@ def addVisibilityDriver(curveOB, drivenProperty="hide_viewport"):
     driver.expression = "not ({0})".format(condition2)
 
 
+def addTransformationConstraint(meshOB, parent):
+    constraint = meshOB.constraints.new(type='COPY_TRANSFORMS')
+    constraint.target = parent
+
 # Apply modifier to smooth out overlap artefacts, only shows in renders
+
+
 def addEnhancingModifiers(curveOB):
     curveOB.modifiers.new('split', 'EDGE_SPLIT')
     curveOB.modifiers.get('split').show_viewport = False
@@ -861,6 +867,8 @@ def placeLayer(curves, zPos, layerNumber, collection, coin, params):
 
     addVisibilityDriver(meshOB)
     addVisibilityDriver(meshOB, "hide_render")
+
+    addTransformationConstraint(meshOB, params[ParamNames.parent])
 
     return meshOB
 

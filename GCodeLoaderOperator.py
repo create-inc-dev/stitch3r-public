@@ -70,6 +70,12 @@ class GCodeLoaderOperator(bpy.types.Operator):
 
             self.parentCollection = bpy.data.collections.new(self.objectName)
             bpy.context.scene.collection.children.link(self.parentCollection)
+            if not self.params[ParamNames.parent]:
+                newEmpty = bpy.data.objects.new("empty", None)
+                self.parentCollection.objects.link(newEmpty)
+                newEmpty.empty_display_size = 50
+                newEmpty.empty_display_type = 'PLAIN_AXES'
+                self.params[ParamNames.parent] = newEmpty
 
             self.numberOfLayers = len(self.listOfParsedLayers) - 1
             self.state = 1
@@ -166,6 +172,8 @@ class GCodeLoaderOperator(bpy.types.Operator):
         params[ParamNames.seed] = 237
         params[ParamNames.slicer] = getattr(
             bpy.context.scene.Stitcher_Props, "SlicerType")
+        params[ParamNames.parent] = getattr(
+            bpy.context.scene.Stitcher_Props, "ParentObject")
 
         filepath = os.path.join(os.path.dirname(
             os.path.abspath(__file__)), "assets.blend")

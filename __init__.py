@@ -453,6 +453,8 @@ class Stitcher_Props(bpy.types.PropertyGroup):
     SeamAbberation_Probability: bpy.props.FloatProperty(
         name='Seam Abberation Probability', default=0, description='The probability with which a seam would be picked to be varied.\n0 being none and 1 being all', min=0, max=100)
 
+    ParentObject: bpy.props.PointerProperty(
+        type=bpy.types.Object, name="Parent", description="Choose the object to which the loaded GCode should be parented.")
     WidthOffset: bpy.props.FloatProperty(
         name='Width Offset', default=0, description='All the lines widths would be offset by this amount', min=-1, max=1)
     HeightOffset: bpy.props.FloatProperty(
