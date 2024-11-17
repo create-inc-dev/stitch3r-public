@@ -824,6 +824,20 @@ def placeSegmentAsCurve(segment, numberOfSlices, zPos, layerNumber, bm, params):
             polyline.points[idx].co = (x, y, z, 1)
 
 
+def isVerySmallSegment(segment):
+    if len(segment) == 2:
+        point1 = Vector(segment[0]["point"])
+        point2 = Vector(segment[1]["point"])
+        if (point2 - point1).length < 0.001:
+            return True
+
+    elif len(segment) < 2:
+        return True
+
+    else:
+        return False
+
+
 def placeLayer(curves, zPos, layerNumber, collection, coin, params):
 
     lengthOfCurve = 0
@@ -841,12 +855,11 @@ def placeLayer(curves, zPos, layerNumber, collection, coin, params):
             segments = getSegments(coords, coin, params)
             segNo = 0
             for segment in segments:
-                placeSegmentAsMesh(segment, numberOfSlices,
-                                   filamentNumber, bm, segNo, params)
-                segNo += 1
-                # placeSegmentAsCurve(segment, 7, 0,
 
-                #                     0, mainCurveData, params)
+                if not isVerySmallSegment(segment):
+                    placeSegmentAsMesh(segment, numberOfSlices,
+                                       filamentNumber, bm, segNo, params)
+                    segNo += 1
 
     bm.to_mesh(meshData)
     meshData.update()
