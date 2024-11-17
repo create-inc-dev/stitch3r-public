@@ -11,6 +11,7 @@ class ParamNames:
     mergeAngle = "MergeAngle"
     SlicesPerPrintLine = "SlicesPerPrintLine"
     degreesPerJointPoint = "DegreesPerJointPoint"
+    zFightingStagger = "ZFightingStagger"
     slicer = "slicer"
     parent = "parent"
 
@@ -110,7 +111,7 @@ def getFilamentName(filamentPrefix, number):
     return filamentPrefix + "_" + str(number)
 
 
-propsNonAnimatable = ['ParentObject', 'WidthOffset', 'HeightOffset', 'SeamDistance', 'MergeAngle', 'SlicesPerPrintLine', 'DegreesPerJointPoint', ('Seam Abberations', (
+propsNonAnimatable = ['ParentObject', 'WidthOffset', 'HeightOffset', 'SeamDistance', 'MergeAngle', 'SlicesPerPrintLine', 'DegreesPerJointPoint', 'ZFightingStagger', ('Seam Abberations', (
     'SeamAbberation_Amount', 'Amount'), ('SeamAbberation_Probability', 'Probability')), ]
 
 slicerItems = [(Keywords.Slicers.none, "None", "None"), (Keywords.Slicers.prusa, "Prusa Slicer", "Prusa Slicer"),

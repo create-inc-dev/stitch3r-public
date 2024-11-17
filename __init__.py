@@ -469,6 +469,8 @@ class Stitcher_Props(bpy.types.PropertyGroup):
         name='Merge Angle', default=3, description='The minimum angle in degrees on which to merge two lines', min=0, step=1)
     SlicesPerPrintLine: bpy.props.IntProperty(
         name='Slices Per Print Line', description="Number of slices for one print line", default=5, min=3, max=11)
+    ZFightingStagger: bpy.props.FloatProperty(
+        name='Z Fighting Stagger', default=0.001, description='Two print lines overlapping causes z-fighting, small black blobs. This staggers the layers to remove that', min=0, step=0.0005, precision=4)
 
     TypesFiltersMap: bpy.props.CollectionProperty(type=KeyValueType)
     TypesFiltersDict = {}

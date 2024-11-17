@@ -479,7 +479,6 @@ def offsetFunction(lineWidth, layerHeight, sliceHeight, roundness=0.5):
 
 # jointResolution is the angle after which to place a new point on a joint
 def getOffsetCurvesForSegment(coords, sliceHeight=0, jointResolution=9 * math.pi / 180):
-    randomHeightOffset = Random().uniform(0, 0.001)
 
     rightOffsetPoints = []
     leftOffsetPoints = []
@@ -503,17 +502,14 @@ def getOffsetCurvesForSegment(coords, sliceHeight=0, jointResolution=9 * math.pi
             point1, point2, point3 = (
                 Vector(coord1["point"]), Vector(coord2["point"]), Vector(coord3["point"]))
 
-            point1.z = point1.z + randomHeightOffset - \
-                zDeduction(coord2["height"])
-            point2.z = point2.z + randomHeightOffset - \
-                zDeduction(coord2["height"])
-            point3.z = point3.z + randomHeightOffset - \
-                zDeduction(coord3["height"])
+            point1.z = point1.z - zDeduction(coord2["height"])
+            point2.z = point2.z - zDeduction(coord2["height"])
+            point3.z = point3.z - zDeduction(coord3["height"])
 
             firstOffset = offsetFunction(
-                coord2["width"] + randomHeightOffset, coord2["height"] + randomHeightOffset, sliceHeight)
+                coord2["width"], coord2["height"], sliceHeight)
             secondOffset = offsetFunction(
-                coord3["width"] + randomHeightOffset, coord3["height"] + randomHeightOffset, sliceHeight)
+                coord3["width"], coord3["height"], sliceHeight)
 
             firstVector = (point2 - point1).normalized()
             secondVector = (point3 - point2).normalized()
@@ -588,11 +584,11 @@ def getOffsetCurvesForSegment(coords, sliceHeight=0, jointResolution=9 * math.pi
         coord1, coord2 = (coordinateBuffer[0], coordinateBuffer[1])
         point1, point2 = (Vector(coord1["point"]), Vector(coord2["point"]))
 
-        point1.z = point1.z + randomHeightOffset - zDeduction(coord2["height"])
-        point2.z = point2.z + randomHeightOffset - zDeduction(coord2["height"])
+        point1.z = point1.z - zDeduction(coord2["height"])
+        point2.z = point2.z - zDeduction(coord2["height"])
 
         firstOffset = offsetFunction(
-            coord2["width"] + randomHeightOffset, coord2["height"] + randomHeightOffset, sliceHeight)
+            coord2["width"], coord2["height"], sliceHeight)
         firstVector = (point2 - point1).normalized()
 
         firstNormal = firstVector.cross(zAxisVector).normalized()
@@ -680,9 +676,16 @@ def createTerminalSliceMesh(slice, bm, filamentNumber, isTop=False):
             face.normal_flip()
 
 
-def placeSegmentAsMesh(segment, numberOfSlices,  filamentNumber,  bm, params):
-    # if numberOfSlices % 2 == 0:
-    #     raise Exception("number of slices must always be an odd number")
+def placeSegmentAsMesh(segment, numberOfSlices,  filamentNumber,  bm, segNo, params):
+    steps = 20
+    segNo = segNo % (steps + 1)
+
+    negativeOffset = -1 * params[ParamNames.zFightingStagger]
+    positiveOffset = params[ParamNames.zFightingStagger]
+
+    randomHeightOffset = negativeOffset + \
+        (positiveOffset - negativeOffset)/steps * \
+        segNo + Random().uniform(-0.001, 0.001)
 
     halfSlice = int(numberOfSlices/2)
     slices = []
@@ -694,13 +697,13 @@ def placeSegmentAsMesh(segment, numberOfSlices,  filamentNumber,  bm, params):
         offsets = getOffsetCurvesForSegment(
             segment, sliceFraction, jointResolution)
 
-        leftOffset = [[bm.verts.new((point.x, point.y, point.z))
+        leftOffset = [[bm.verts.new((point.x, point.y, point.z + randomHeightOffset))
                        for point in group] for group in offsets["left"]]
-        rightOffset = [[bm.verts.new((point.x, point.y, point.z))
+        rightOffset = [[bm.verts.new((point.x, point.y, point.z + randomHeightOffset))
                         for point in group] for group in offsets["right"]]
-        startCap = [bm.verts.new((point.x, point.y, point.z))
+        startCap = [bm.verts.new((point.x, point.y, point.z + randomHeightOffset))
                     for point in offsets["start"]]
-        endCap = [bm.verts.new((point.x, point.y, point.z))
+        endCap = [bm.verts.new((point.x, point.y, point.z + randomHeightOffset))
                   for point in offsets["end"]]
 
         slices.append({"left": leftOffset, "right": rightOffset,
@@ -836,9 +839,11 @@ def placeLayer(curves, zPos, layerNumber, collection, coin, params):
 
         if (len(coords) > 1):
             segments = getSegments(coords, coin, params)
+            segNo = 0
             for segment in segments:
                 placeSegmentAsMesh(segment, numberOfSlices,
-                                   filamentNumber, bm, params)
+                                   filamentNumber, bm, segNo, params)
+                segNo += 1
                 # placeSegmentAsCurve(segment, 7, 0,
 
                 #                     0, mainCurveData, params)
