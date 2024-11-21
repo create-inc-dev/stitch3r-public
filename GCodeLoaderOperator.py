@@ -54,6 +54,18 @@ class GCodeLoaderOperator(bpy.types.Operator):
 
             timeTaken = int(self.endTime - self.startTime)
 
+            parentObj = self.params[ParamNames.parent]
+
+            try:
+                parentDrivers = parentObj.animation_data.drivers
+
+                for driver in parentDrivers:
+                    if driver.data_path.startswith('["' + Keywords.maxZHeight):
+                        driver.driver.expression += " "
+                        driver.driver.expression = driver.driver.expression[:-1]
+            except AttributeError:
+                pass
+
             bpy.context.scene["Stitcher_Object_Collection"] = self.parentCollection
             bpy.context.scene.Stitcher_Props.Status = "Processing Done took {}s".format(
                 timeTaken)
@@ -78,6 +90,13 @@ class GCodeLoaderOperator(bpy.types.Operator):
                 self.params[ParamNames.parent] = newEmpty
 
             self.numberOfLayers = len(self.listOfParsedLayers) - 1
+
+            parentObj = self.params[ParamNames.parent]
+            parentObj[Keywords.numberOfLayers] = self.numberOfLayers
+            parentObj[Keywords.overrideHeight] = False
+            parentObj[Keywords.overrideHeightValue] = 0
+            parentObj[Keywords.layerHeight] = [
+                0 for i in range(self.numberOfLayers + 1)]
             self.state = 1
 
             self.report({'INFO'}, 'GCode Parsed Successfully')
@@ -175,10 +194,14 @@ class GCodeLoaderOperator(bpy.types.Operator):
         params[ParamNames.parent] = getattr(
             bpy.context.scene.Stitcher_Props, "ParentObject")
 
-        filepath = os.path.join(os.path.dirname(
-            os.path.abspath(__file__)), "assets.blend")
-        with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
-            data_to.node_groups = [Keywords.geoNodesName]
+        if not bpy.data.node_groups.get(Keywords.geoNodesName):
+            filepath = os.path.join(os.path.dirname(
+                os.path.abspath(__file__)), "assets.blend")
+            with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
+                data_to.node_groups = [Keywords.geoNodesName]
+
+            bpy.data.node_groups.get(
+                Keywords.geoNodesName).use_fake_user = True
 
         self.fileName = fileName
         self.params = params

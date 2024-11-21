@@ -26,6 +26,8 @@ class Keywords:
     materialName = "Stitcher Material"
     geoNodesName = "Stitcher Geometry Nodes"
     importCollectionName = "Import Things"
+    ender3SceneFileName = "ender_3_assets"
+    ender3SceneName = "ender3_scene"
     shadowCatcherCollectionName = "Shadow Catcher"
     geoNodesModifierName = "GeoNodes"
     viewportOnly = "ViewportOnly"
@@ -35,6 +37,11 @@ class Keywords:
     startPoint = "startPoint"
     endPoint = "endPoint"
     meshObject = "meshObject"
+    maxZHeight = "max_z_height"
+    numberOfLayers = "number_of_layers"
+    overrideHeight = "override_height"
+    overrideHeightValue = "override_height_value"
+    layerHeight = "layer_heights"
 
     class Slicers:
         prusa = "prusa"

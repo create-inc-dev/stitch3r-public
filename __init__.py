@@ -111,6 +111,22 @@ class AssetLoaderOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class Ender3SceneLoader(bpy.types.Operator):
+
+    bl_idname = 'opr.ender3_scene_loader'
+    bl_label = 'Load Ender 3 Assets'
+    bl_description = "Load the Ender 3 model and lighting"
+
+    def execute(self, context):
+        filepath = os.path.join(os.path.dirname(
+            os.path.abspath(__file__)), Keywords.ender3SceneFileName + ".blend")
+        with bpy.data.libraries.load(filepath, link=False) as (data_from, data_to):
+            data_to.scenes = [Keywords.ender3SceneName]
+
+        bpy.context.window.scene = bpy.data.scenes[Keywords.ender3SceneName]
+        return {'FINISHED'}
+
+
 class ShadowCatcherLoaderOperator(bpy.types.Operator):
 
     bl_idname = 'opr.shadow_catcher_loader'
@@ -182,7 +198,7 @@ class RenderSettingsOperator(bpy.types.Operator):
 class ExternalPerimeterSelector(bpy.types.Operator):
 
     bl_idname = 'opr.external_perimeter_selector'
-    bl_label = 'Load Assets'
+    bl_label = 'Select External Parameter'
 
     def execute(self, context):
         seed = 237
@@ -197,7 +213,7 @@ class ExternalPerimeterSelector(bpy.types.Operator):
 class GeometryNodesApplicator(bpy.types.Operator):
 
     bl_idname = 'opr.geometry_nodes_applicator'
-    bl_label = 'Load Assets'
+    bl_label = 'Apply Error Geometry Nodes'
 
     def execute(self, context):
         sys.modules[modulesFullNames['ExtruderErrorCreator']].applyGeoNodes()
@@ -225,6 +241,9 @@ class Options(PanelParent):
 
         row = col.row()
         col.operator('opr.asset_loader', text='Load Assets')
+
+        row = col.row()
+        col.operator('opr.ender3_scene_loader', text='Load Ender3 Scene')
 
         row = col.row()
         col.operator('opr.shadow_catcher_loader', text='Load Shadow Catcher')
@@ -466,7 +485,7 @@ class Stitcher_Props(bpy.types.PropertyGroup):
     ExtruderError_Probability: bpy.props.FloatProperty(
         name='Extruder Error Probability', default=0, description='The probability with which a point would be picked to be varied.\n0 being none and 1 being all', min=0)
     MergeAngle: bpy.props.FloatProperty(
-        name='Merge Angle', default=3, description='The minimum angle in degrees on which to merge two lines', min=0, step=1)
+        name='Merge Angle', default=3, description='The minimum angle in degrees on which to merge two lines', min=0.01, step=1)
     SlicesPerPrintLine: bpy.props.IntProperty(
         name='Slices Per Print Line', description="Number of slices for one print line", default=5, min=3, max=11)
     ZFightingStagger: bpy.props.FloatProperty(
@@ -505,7 +524,7 @@ class Stitcher_Props(bpy.types.PropertyGroup):
 
 
 CLASSES = [
-    G2G3ConfirmationDialog, SlicerConfirmation, RenderSettingsOperator, KeyValueType, Stitcher_Props, Options, TypeFilters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, ShadowCatcherLoaderOperator, NonAnimatable, ExternalPerimeterSelector, GeometryNodesApplicator,
+    G2G3ConfirmationDialog, SlicerConfirmation, RenderSettingsOperator, KeyValueType, Stitcher_Props, Options, TypeFilters, GCodeLoaderOperator, Animatable, AssetLoaderOperator, Ender3SceneLoader, ShadowCatcherLoaderOperator, NonAnimatable, ExternalPerimeterSelector, GeometryNodesApplicator,
 ]
 
 propsMain = [

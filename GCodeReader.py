@@ -242,12 +242,18 @@ def addTransformationConstraint(meshOB, parent):
     constraint = meshOB.constraints.new(type='COPY_TRANSFORMS')
     constraint.target = parent
 
-# Apply modifier to smooth out overlap artefacts, only shows in renders
 
-
-def addEnhancingModifiers(curveOB):
-    curveOB.modifiers.new('split', 'EDGE_SPLIT')
-    curveOB.modifiers.get('split').show_viewport = False
+def addLayerHeightProperty(layerHeight, layerNumber,  parent):
+    try:
+        heights = parent["layer_heights"]
+    except KeyError:
+        heights = None
+    if heights:
+        heights = list(heights)
+        heights[layerNumber] = layerHeight
+        parent[Keywords.layerHeight] = heights
+    else:
+        parent[Keywords.layerHeight] = [layerHeight]
 
 
 def removeSeamDistance(coords, coin, params):
@@ -401,7 +407,9 @@ def getSegments(coords, coin, params):
             firstVector = point2 - point1
             secondVector = point3 - point2
 
-            if firstVector.length < secondOffset / abs(math.sin(firstVector.angle(secondVector))):
+            angleBetweenVectors = firstVector.angle(secondVector)
+
+            if angleBetweenVectors != 0 and firstVector.length < secondOffset / abs(math.sin(angleBetweenVectors)):
                 if len(currentSegment) > 0:
                     segments.append(currentSegment)
                     currentSegment = []
@@ -411,7 +419,7 @@ def getSegments(coords, coin, params):
                 if i == len(newCoords) - 1:
                     segments.append([coord2, coord3])
 
-            elif secondVector.length < firstOffset / abs(math.sin(firstVector.angle(secondVector))):
+            elif angleBetweenVectors != 0 and secondVector.length < firstOffset / abs(math.sin(angleBetweenVectors)):
                 if len(currentSegment) == 0:
                     currentSegment.append(coord1)
 
@@ -887,6 +895,7 @@ def placeLayer(curves, zPos, layerNumber, collection, coin, params):
     addVisibilityDriver(meshOB, "hide_render")
 
     addTransformationConstraint(meshOB, params[ParamNames.parent])
+    addLayerHeightProperty(zPos, layerNumber, params[ParamNames.parent])
 
     return meshOB
 
