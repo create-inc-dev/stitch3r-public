@@ -427,7 +427,8 @@ def getSegments(coords, coin, params):
                 segments.append(currentSegment)
                 currentSegment = []
 
-                segments.append([coord2, coord3])
+                if i == len(newCoords) - 1:
+                    segments.append([coord2, coord3])
 
             else:
                 if len(currentSegment) == 0:
