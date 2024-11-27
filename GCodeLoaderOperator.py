@@ -94,7 +94,7 @@ class GCodeLoaderOperator(bpy.types.Operator):
             parentObj = self.params[ParamNames.parent]
             parentObj[Keywords.numberOfLayers] = self.numberOfLayers
             parentObj[Keywords.overrideHeight] = False
-            parentObj[Keywords.overrideHeightValue] = 0
+            parentObj[Keywords.overrideHeightValue] = 0.000
             parentObj[Keywords.layerHeight] = [
                 0 for i in range(self.numberOfLayers + 1)]
             self.state = 1
