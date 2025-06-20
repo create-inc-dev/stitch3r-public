@@ -529,8 +529,18 @@ def getOffsetCurvesForSegment(coords, sliceHeight=0, jointResolution=9 * math.pi
             angleBetween = (firstVector * -1).angle(secondVector)
             angleBetween = angleBetween if angleBetween < math.pi else math.pi * 2 - angleBetween
 
-            intersectionVector = (firstVector * -1) * firstOffset/math.sin(
-                angleBetween) + secondVector * secondOffset/math.sin(angleBetween)
+            bisector = ((firstVector * -1).normalized() +
+                        secondVector.normalized()).normalized()
+
+            # Correct intersection distance using sine rule
+            sin_angle = math.sin(angleBetween / 2)
+            if sin_angle == 0:
+                intersectionVector = Vector(
+                    (0, 0, 0))  # Avoid division by zero
+            else:
+                offset_distance = (
+                    firstOffset + secondOffset) / (2 * sin_angle)
+                intersectionVector = bisector * offset_distance
 
             if i == 2:
                 rightOffsetPoints.append([point1 + firstNormal*firstOffset])
