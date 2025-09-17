@@ -395,7 +395,8 @@ def fileNameUpdationFunction(self, context):
                 if patternMatcherFunction(filamentChangePattern, line):
                     filamentNumber = int(
                         patternMatcherSearch(filamentChangePattern, line)[1].strip())
-                    filamentSet.add(filamentNumber)
+                    if filamentNumber <= 20:
+                        filamentSet.add(filamentNumber)
 
                 if patternMatcherFunction(curveGcodePattern, line):
                     g2g3Found = True

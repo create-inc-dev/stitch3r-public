@@ -7,3 +7,5 @@ tester.py
 /.vscode
 qblockscommands.txt
 .DS_Store
+logs/**/*.log
+processing_server/target

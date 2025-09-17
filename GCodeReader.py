@@ -205,7 +205,9 @@ def gcodeParser(gcodeFilePath, params):
         elif patternMatcherFunction(filamentChangePattern, line):
             filamentNumber = int(patternMatcherSearch(
                 filamentChangePattern, line)[1].strip())
-            valueTacker['filament'] = filamentNumber
+
+            if filamentNumber <= 20:
+                valueTacker['filament'] = filamentNumber
 
         elif line == "!__end__!":
             prevLayer = Layer(prevLayerZPos, prevLayerHeight,

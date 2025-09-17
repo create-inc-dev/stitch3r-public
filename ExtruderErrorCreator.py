@@ -13,7 +13,7 @@ def makeSelection(collection, probability, seed):
         obj.select_set(False)
 
     for obj in collection.all_objects:
-        if (obj["type"] == Keywords.meshObject):
+        if ("type" in obj.keys() and obj["type"] == Keywords.meshObject):
             toss = coin.toss(probability)
             if toss:
                 obj.select_set(True)
@@ -26,6 +26,7 @@ def applyGeoNodesPerObject(obj):
         modifier = obj.modifiers.new(Keywords.geoNodesModifierName, "NODES")
         modifier.node_group = ng
         modifier["Input_4"] = obj.data.materials[i]
+        modifier["Socket_0"] = obj.data["layerNumber"]
 
 
 def applyGeoNodes():
