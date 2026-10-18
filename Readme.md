@@ -17,92 +17,44 @@ Thank you to all the supporters who have supported me in my strive to deliver a 
 Complete docs are available [here](https://stitch3r-wiki.createinc.dev/)
 It explains everything in detail
 
-Stitch3r — GCode Renderer for Blender
+# Stitch3r — GCode Renderer for Blender
 
-<p align="center">
-<img src="https://assets.superhivemarket.com/store/productimage/306659/image/54b95fa480427638ada73c4a43c0680c.png" alt="Stitch3r G-code rendering example" width="800">
-</p>
+This is Blender addon even a Blender newbie can use. We have customers that knew nothing about Blender but still managed great renders.
 
-<p align="center">
-<b>Turn 3D printing G-code into realistic 3D models, renders, and timelapse animations.</b>
-</p>
+It takes PrusaSlider, OrcaSlicer or BambuStudio GCode, processes it and converts it into a renderable 3d model. It takes into account various heights and widths of the GCode and delivers a very realistic looking model.
 
-<p align="center">
-<a href="https://createinc.gumroad.com/l/stitch3r">Product Page</a> ·
-<a href="https://github.com/create-inc-dev/stitch3r-public">GitHub Repository</a> ·
-<a href="https://stitch3r-wiki.createinc.dev/">Documentation</a>
-</p>
+For the full guide, please visit the [Wiki](https://stitch3r-wiki.createinc.dev/)
 
-Overview
+Please watch the launch (video)[https://youtu.be/MLZJUBB3Pdk] for some tips and tricks:
 
-Stitch3r is a Blender add-on that transforms sliced G-code into realistic, renderable 3D geometry. It takes extrusion widths and heights into account, allowing you to visualize 3D prints with detailed layer structures, materials, and print features.
+## Testimonials
 
-Gallery
-Realistic 3D Print Visualization
+![Test 1](<images/image%20(2).webp>)
+![Test 2](<images/image%20(3).webp>)
+![Test 1](<images/image%20(4).webp>)
 
-<p align="center">
-<img src="https://assets.superhivemarket.com/store/productimage/306658/image/21e7cf1a2ac026b28ae6640698432131.jpg" alt="Detailed G-code rendered bust" width="700">
-</p>
+## Features
 
-Print Layers and Geometry
+- Includes material, the bottom plate, lights and set
 
-<p align="center">
-<img src="https://assets.superhivemarket.com/store/productimage/306660/image/c3c0ef49acae54d039a3a452a62c26a8.jpg" alt="Visible extrusion paths and internal geometry" width="700">
-</p>
+- Comes with a realistic printer scene and more will be coming in the future:
+  ![Ender Scene](images/image.webp)
 
-Multi-Material Rendering
+- Truly one-click processing: 
+  ![One Click](images/image%202.webp)
+  Just select a valid PrusaSlicer or OrcaSlicer sliced GCode file and let the addon worry about the rest.
 
-<p align="center">
-<img src="https://assets.superhivemarket.com/store/productimage/306663/image/caae5d49c0fe1a09bf72890b682ae425.png" alt="Multi-material G-code visualization" width="700">
-</p>
+- Select the feature types you want to see/render:
+  ![One Click](images/image%203.png)
 
-Add-on Interface
+- Multimaterial Support
+  ![Multimaterial](images/no_support454.webp)
 
-<p align="center">
-<img src="https://assets.superhivemarket.com/store/productimage/799743/image/thumb-79a1fe4637e3a4d4a5d09e6f060e90ad.png" alt="Stitch3r settings panel in Blender" width="500">
-</p>
+- Create 3D printing timelapses by just keyframing a single property:
+  ![Timelapse](images/image%204.webp)
 
-Print Imperfections
+- Add realistic blobs and errors:
+  ![Blobs](images/Lincoln3DprintedTimelapseEndingNoSupport_0765.webp)
 
-<p align="center">
-<img src="https://assets.superhivemarket.com/store/productimage/799764/image/thumb-868023fda1f52a7d223294612a9f1571.jpg" alt="Rendered print with detailed surface features" width="500">
-</p>
-
-Features
-G-code to 3D geometry: Convert sliced toolpaths into renderable Blender geometry.
-One-click processing: Simplify the process of importing and preparing supported G-code.
-Realistic extrusion: Account for extrusion widths and layer heights.
-Multi-material support: Visualize prints made with different materials.
-Feature visibility: Choose which print features are visible in the final render.
-Timelapse animation: Animate the printing process using keyframes.
-Print imperfections: Add simulated blobs and extrusion errors.
-Render-ready scenes: Work with included materials, lighting, and a build plate.
-Supported Slicers
-PrusaSlicer
-OrcaSlicer
-Bambu Studio
-Basic Workflow
-Slice a 3D model using a supported slicer.
-Export the sliced G-code.
-Open Blender and load the G-code through Stitch3r.
-Process the toolpaths into 3D geometry.
-Customize the scene, materials, lighting, and camera.
-Render a still image or animate the printing process.
-
-For detailed instructions, see the official documentation.
-
-Requirements
-Blender version compatible with your Stitch3r release.
-A supported slicer that exports compatible G-code.
-Adequate system resources for geometry processing and rendering.
-Links
-Product: https://createinc.gumroad.com/l/stitch3r
-Source code: https://github.com/create-inc-dev/stitch3r-public
-Documentation: https://stitch3r-wiki.createinc.dev/
-License
-
-Refer to the repository's LICENSE file for the applicable license terms.
-
-<p align="center">
-<i>From G-code to beautiful 3D visuals.</i>
-</p>
+- To Support or Not to Support?
+  ![Supports](images/Lincoln3DprintedTimelapseEnding_0625.webp)
